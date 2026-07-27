@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Danmaku Enhancer Settings</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <h2>Bahamut Danmaku Enhancer</h2>
+    
+    <div class="setting-group">
+      <label>
+        <input type="checkbox" id="aiFilterToggle">
+        Enable Gemini Nano AI Filter
+      </label>
+      <p class="desc">Uses local AI to block spoilers and inappropriate content.</p>
+    </div>
+
+    <div class="setting-group">
+      <h3>Keyword Blocklist</h3>
+      <div class="input-group">
+        <input type="text" id="newKeyword" placeholder="Enter keyword to block...">
+        <button id="addKeyword">Add</button>
+      </div>
+      <ul id="keywordList" class="block-list"></ul>
+    </div>
+
+    <div class="setting-group">
+      <h3>User Blocklist</h3>
+      <div class="input-group">
+        <input type="text" id="newUser" placeholder="Enter User ID to block...">
+        <button id="addUser">Add</button>
+      </div>
+      <ul id="userList" class="block-list"></ul>
+    </div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
