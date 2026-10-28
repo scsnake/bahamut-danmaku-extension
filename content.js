@@ -13,6 +13,14 @@ const MODES = { 0: 'rolling', 1: 'top', 2: 'bottom' };
 // Comments still waiting for the AI this long after their time are dropped.
 const GRACE_TENTHS = 30;
 const AI_LOOKAHEAD_TENTHS = 20;
+// Live updates: fetch the list again this often while the video plays.
+// New comments up to LIVE_CATCHUP_MS behind the playhead (for example one
+// the viewer just sent) show at once, part-way through.
+const LIVE_REFRESH_MS = 120000;
+const LIVE_CATCHUP_MS = 8000;
+// After the viewer sends a comment (/ajax/danmuSet.php), fetch the list at
+// these delays; the second one covers a slow server update.
+const SENT_REFRESH_DELAYS_MS = [800, 4000];
 const SETTINGS_POLL_MS = 1000;
 const REFETCH_DEBOUNCE_MS = 300;
 const DEBUG_FLUSH_MS = 2000;
@@ -62,7 +70,7 @@ let lastFrameAt = 0;
 let lastCountAt = 0;
 
 function newStats() {
-  return { rendered: 0, backfilled: 0, droppedLate: 0, blocked: 0, aiRequested: 0, aiBlocked: 0, aiFailed: 0 };
+  return { rendered: 0, backfilled: 0, lateShown: 0, droppedLate: 0, blocked: 0, aiRequested: 0, aiBlocked: 0, aiFailed: 0 };
 }
 
 function newFrameStats() {
@@ -280,8 +288,9 @@ async function init() {
   requestAnimationFrame(measureFrame);
   videoElement.addEventListener('loadedmetadata', () => dlog('loadedmetadata', { duration: videoElement.duration }));
   window.addEventListener('pagehide', flushDebugLog);
+  setInterval(liveRefresh, LIVE_REFRESH_MS);
 
-  await loadDanmaku();
+  await loadDanmaku('init');
 }
 
 // Our layer or the official one (popup switch or control-bar button). The
@@ -328,7 +337,7 @@ function updatePlayerToggle() {
 // Loads (or reloads) the list. On a reload, keeps what is on screen and the
 // AI results, drops comments the server no longer returns (for example from
 // a user just muted), and continues from the current position.
-async function loadDanmaku() {
+async function loadDanmaku(reason) {
   let list;
   const sn = currentVideoSn;
   const started = performance.now();
@@ -351,9 +360,12 @@ async function loadDanmaku() {
   danmakuData = list;
   bySn = new Map(list.map(d => [d.sn, d]));
   processDanmaku();
+  const added = previous.size ? list.filter(d => !previous.has(d.sn)) : [];
   dlog('loaded', {
+    reason,
     count: danmakuData.length,
     reload: previous.size > 0,
+    added: added.length,
     removed: previous.size ? [...previous.keys()].filter(sn => !bySn.has(sn)).length : 0,
     blocked: danmakuData.filter(d => d.isBlocked).length,
     ms: Math.round(performance.now() - started),
@@ -370,6 +382,29 @@ async function loadDanmaku() {
     const d = bySn.get(Number(el.dataset.sn));
     return !d || d.isBlocked;
   });
+  showLateArrivals(added);
+}
+
+// New comments from a reload whose time already passed show at once,
+// part-way through, if they are recent (for example one the viewer just
+// sent; the official player shows those right away too).
+function showLateArrivals(added) {
+  if (!added.length || !overlayOn() || !display.enabled || adActive || videoElement.paused) return;
+  const nowMs = videoElement.currentTime * 1000;
+  for (const d of added) {
+    const startMs = d.time * 100;
+    if (d.time > lastTenths || nowMs - startMs > LIVE_CATCHUP_MS) continue;
+    if (d.isBlocked || (settings.aiFilterEnabled && d.aiEvaluated !== true)) continue;
+    if (renderDanmaku(d, startMs, Math.max(0, nowMs - startMs))) stats.lateShown++;
+  }
+}
+
+// Fetches the list again every LIVE_REFRESH_MS while the video plays in a
+// visible tab, so comments sent by others while you watch show up.
+function liveRefresh() {
+  if (settings.liveUpdate === false || document.hidden || !videoElement) return;
+  if (videoElement.paused || adActive || !danmakuData.length) return;
+  loadDanmaku('live');
 }
 
 async function fetchDanmaku(videoSn, geos) {
@@ -396,6 +431,13 @@ function watchOfficialRefetch() {
   let timer = 0;
   new PerformanceObserver(entries => {
     for (const entry of entries.getEntries()) {
+      if (entry.name.includes('/ajax/danmuSet.php')) {
+        // The viewer sent a comment; our layer hides the official one, which
+        // shows it right away.
+        dlog('commentSent');
+        SENT_REFRESH_DELAYS_MS.forEach(ms => setTimeout(() => loadDanmaku('sent'), ms));
+        continue;
+      }
       if (!entry.name.includes('/anime/v1/danmu.php')) continue;
       const own = ownFetchStarts.findIndex(t => Math.abs(t - entry.startTime) < 50);
       if (own >= 0) {
@@ -407,7 +449,7 @@ function watchOfficialRefetch() {
       dlog('officialRefetch', { videoSn: sn, ownPending: ownFetchStarts.length });
       if (sn && sn !== currentVideoSn) changeEpisode(sn);
       clearTimeout(timer);
-      timer = setTimeout(loadDanmaku, REFETCH_DEBOUNCE_MS);
+      timer = setTimeout(() => loadDanmaku('official'), REFETCH_DEBOUNCE_MS);
     }
   }).observe({ type: 'resource' });
 }
@@ -461,7 +503,7 @@ function pollOfficialDisplay() {
   dlog('officialDisplay', display);
 
   if (display.geos.join() !== prev.geos.join()) {
-    loadDanmaku();
+    loadDanmaku('geos');
     return;
   }
   if (!display.enabled) {

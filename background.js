@@ -10,6 +10,7 @@ chrome.runtime.onInstalled.addListener(async () => {
       settings: {
         overlayEnabled: true,
         densityEnabled: true,
+        liveUpdate: true,
         aiFilterEnabled: true,
         aiStrictness: 'moderate', // 'low', 'moderate', 'high'
         keywordBlocklist: [],

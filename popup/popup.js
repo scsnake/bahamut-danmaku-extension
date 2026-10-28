@@ -45,6 +45,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     await saveSettings();
   });
 
+  const liveToggle = document.getElementById('liveToggle');
+  liveToggle.checked = settings.liveUpdate !== false;
+  liveToggle.addEventListener('change', async (e) => {
+    settings.liveUpdate = e.target.checked;
+    await saveSettings();
+  });
+
   const densityToggle = document.getElementById('densityToggle');
   densityToggle.checked = settings.densityEnabled !== false;
   densityToggle.addEventListener('change', async (e) => {
