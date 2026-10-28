@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
   <meta charset="utf-8">
   <title>Danmaku Enhancer Settings</title>
@@ -7,64 +7,77 @@
 </head>
 <body>
   <div class="container">
-    <h2>Bahamut Danmaku Enhancer</h2>
-    
+    <h2 data-i18n="appName"></h2>
+
+    <div class="setting-group">
+      <label class="select-row">
+        <span data-i18n="popup.language"></span>
+        <!-- Each language is named in itself, so the labels are not translated. -->
+        <select id="uiLanguage">
+          <option value="zh-TW">繁體中文</option>
+          <option value="en">English</option>
+        </select>
+      </label>
+      <p class="desc" data-i18n="popup.languageDesc"></p>
+    </div>
+
     <div class="setting-group">
       <label>
         <input type="checkbox" id="overlayToggle">
-        Use enhanced danmaku layer
+        <span data-i18n="popup.overlay"></span>
       </label>
-      <p class="desc">Off shows the official danmaku instead. The official on/off, opacity, size and type settings apply to both.</p>
+      <p class="desc" data-i18n="popup.overlayDesc"></p>
     </div>
 
     <div class="setting-group">
       <label>
         <input type="checkbox" id="densityToggle">
-        Show danmaku density curve
+        <span data-i18n="popup.density"></span>
       </label>
-      <p class="desc">A faint curve above the progress bar shows where comments are busiest.</p>
+      <p class="desc" data-i18n="popup.densityDesc"></p>
     </div>
 
     <div class="setting-group">
       <label>
         <input type="checkbox" id="aiFilterToggle">
-        Enable Gemini Nano AI Filter
+        <span data-i18n="popup.ai"></span>
       </label>
-      <p class="desc">Uses local AI to block spoilers and inappropriate content.</p>
+      <p class="desc" data-i18n="popup.aiDesc"></p>
     </div>
 
     <div class="setting-group">
-      <h3>Scene Bookmarks <span id="bookmarkCount" class="count"></span></h3>
-      <p class="hint">On a video, press <kbd>B</kbd> to save the moment, or <span class="nowrap"><kbd>[</kbd> <kbd>]</kbd></span> to mark a clip.</p>
-      <button id="openBookmarks" class="full-width">Open Bookmark Manager</button>
+      <h3><span data-i18n="popup.bookmarks"></span> <span id="bookmarkCount" class="count"></span></h3>
+      <p class="hint" data-i18n-html="popup.bookmarksHint"></p>
+      <button id="openBookmarks" class="full-width" data-i18n="popup.openManager"></button>
     </div>
 
     <div class="setting-group">
-      <h3>Keyword Blocklist</h3>
+      <h3 data-i18n="popup.keywords"></h3>
       <div class="input-group">
-        <input type="text" id="newKeyword" placeholder="Enter keyword to block...">
-        <button id="addKeyword">Add</button>
+        <input type="text" id="newKeyword" data-i18n-placeholder="popup.keywordPlaceholder">
+        <button id="addKeyword" data-i18n="add"></button>
       </div>
       <ul id="keywordList" class="block-list"></ul>
     </div>
 
     <div class="setting-group">
-      <h3>User Blocklist</h3>
+      <h3 data-i18n="popup.users"></h3>
       <div class="input-group">
-        <input type="text" id="newUser" placeholder="Enter User ID to block...">
-        <button id="addUser">Add</button>
+        <input type="text" id="newUser" data-i18n-placeholder="popup.userPlaceholder">
+        <button id="addUser" data-i18n="add"></button>
       </div>
       <ul id="userList" class="block-list"></ul>
     </div>
 
     <div class="setting-group">
-      <h3>Debug Log <span id="debugCount" class="count"></span></h3>
+      <h3><span data-i18n="popup.debugLog"></span> <span id="debugCount" class="count"></span></h3>
       <div class="input-group">
-        <button id="exportLog">Export</button>
-        <button id="clearLog">Clear</button>
+        <button id="exportLog" data-i18n="export"></button>
+        <button id="clearLog" data-i18n="clear"></button>
       </div>
     </div>
   </div>
+  <script src="../i18n.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

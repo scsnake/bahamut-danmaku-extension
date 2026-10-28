@@ -1,0 +1,317 @@
+// i18n.js
+//
+// Interface text in Traditional Chinese (Taiwan) and English. Most viewers
+// of ani.gamer.com.tw read zh-TW, so it is the default whatever the browser
+// language; the popup can switch to English (settings.uiLanguage).
+//
+// Loaded as a classic script in the content scripts, the popup and the
+// bookmark manager, so it exposes one global. Call load() (or setLanguage()
+// with the settings already read) before building any UI, then t(key, vars)
+// for text and apply(root) for static pages marked with data-i18n*
+// attributes.
+//
+// A message is a string with {name} placeholders, or a function of the vars
+// (for English plurals). Values marked "html" are set with innerHTML; they
+// hold only this file's own markup, never page or user text.
+
+const DmkI18n = (() => {
+  const DEFAULT_LANGUAGE = 'zh-TW';
+
+  const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+  const MESSAGES = {
+    'zh-TW': {
+      appName: '巴哈彈幕增強',
+      save: '儲存',
+      edit: '編輯',
+      undo: '復原',
+      delete: '刪除',
+      cancel: '取消',
+      play: '播放',
+      export: '匯出',
+      import: '匯入',
+      clear: '清除',
+      add: '新增',
+      remove: '移除',
+
+      'popup.language': '介面語言',
+      'popup.languageDesc': '播放器內的文字會在重新載入頁面後更新。',
+      'popup.overlay': '使用增強彈幕層',
+      'popup.overlayDesc': '關閉時改顯示官方彈幕。官方的彈幕開關、透明度、大小與類型設定兩者皆適用。',
+      'popup.density': '顯示彈幕密度曲線',
+      'popup.densityDesc': '進度條上方的淡色曲線標示彈幕最密集的段落。',
+      'popup.ai': '啟用 Gemini Nano AI 過濾',
+      'popup.aiDesc': '使用本機 AI 封鎖劇透與不當內容。',
+      'popup.bookmarks': '場景書籤',
+      'popup.bookmarksHint': '在影片頁按 <kbd>B</kbd> 儲存目前時間點，或按 <span class="nowrap"><kbd>[</kbd> <kbd>]</kbd></span> 標記片段。',
+      'popup.openManager': '開啟書籤管理',
+      'popup.keywords': '關鍵字封鎖清單',
+      'popup.keywordPlaceholder': '輸入要封鎖的關鍵字…',
+      'popup.users': '使用者封鎖清單',
+      'popup.userPlaceholder': '輸入要封鎖的使用者 ID…',
+      'popup.debugLog': '偵錯紀錄',
+
+      'player.toggleOn': '增強',
+      'player.toggleOff': '官方',
+      'player.toggleOnTitle': '增強彈幕層（點擊切換為官方彈幕）',
+      'player.toggleOffTitle': '官方彈幕（點擊切換為增強彈幕層）',
+
+      'modal.title': '彈幕資訊',
+      'modal.author': '發送者 ID：{id}',
+      'modal.copy': '複製',
+      'modal.copied': '已複製',
+      'modal.blockUser': '封鎖使用者',
+      'modal.filterText': '過濾此文字',
+      'modal.close': '關閉',
+
+      'bm.clip': '片段',
+      'bm.saveTitle': '將這一刻加入書籤（B）',
+      'bm.clipTitle': '標記片段起點，再標記終點（[ 與 ]）',
+      'bm.clipRecordingTitle': '片段從 {time} 開始，點擊或按 ] 儲存',
+      'bm.cancelClipTitle': '取消片段（Esc）',
+      'bm.listTitle': '本集書籤',
+      'bm.manageAll': '管理全部 ↗',
+      'bm.thisEpisode': '本集',
+      'bm.emptyPanel': '尚未儲存任何書籤。按 B 儲存時間點，或按 [ 與 ] 標記片段。',
+      'bm.clipStarted': '片段從 {time} 開始，到結尾時按 ]（或點擊按鈕）',
+      'bm.pressStartFirst': '請先按 [ 標記片段起點',
+      'bm.savedClip': '已儲存片段 {range}',
+      'bm.savedMoment': '已儲存時間點 {range}',
+      'bm.notPlaying': '影片尚未開始播放',
+      'bm.clipEnded': '片段結束（{range}）',
+      'bm.replay': '重播',
+      'bm.keepWatching': '繼續觀看',
+      'bm.jumped': '已跳至 {range}',
+      'bm.playFromHere': '從這裡播放',
+      'bm.deleted': '已刪除 {range}',
+      'bm.failed': '書籤操作失敗：{message}',
+      'bm.editTitle': '編輯書籤',
+      'bm.title': '標題',
+      'bm.titlePlaceholderClip': '例如：OP、大決戰',
+      'bm.titlePlaceholderMoment': '例如：本季最佳台詞',
+      'bm.note': '備註',
+      'bm.tags': '標籤',
+      'bm.tagsPlaceholder': '以逗號分隔',
+      'bm.updated': '書籤已更新',
+      'bm.untitledClip': '未命名片段',
+      'bm.untitledMoment': '未命名時間點',
+
+      'mgr.pageTitle': '場景書籤',
+      'mgr.summaryEmpty': '你收藏的精彩場景',
+      'mgr.summary': '{scenes} · {clips} · {works}',
+      'mgr.scenes': '{n} 個場景',
+      'mgr.clips': '{n} 個片段',
+      'mgr.works': '{n} 部作品',
+      'mgr.searchPlaceholder': '搜尋標題、備註、標籤、彈幕…',
+      'mgr.searchLabel': '搜尋書籤',
+      'mgr.filters': '篩選',
+      'mgr.type': '類型',
+      'mgr.all': '全部',
+      'mgr.kindMoments': '時間點',
+      'mgr.kindClips': '片段',
+      'mgr.work': '作品',
+      'mgr.allWorks': '所有作品',
+      'mgr.sort': '排序',
+      'mgr.groupByWork': '依作品分組',
+      'mgr.newest': '最新優先',
+      'mgr.oldest': '最舊優先',
+      'mgr.emptyTitle': '尚未儲存任何場景',
+      'mgr.emptyText': '在 ani.gamer.com.tw 觀看時，將滑鼠移到播放器上，使用右上角的工具列，或使用鍵盤：',
+      'mgr.keyMoment': '<kbd>B</kbd> 儲存目前時間點',
+      'mgr.keyClip': '<kbd>[</kbd> 標記片段起點，<kbd>]</kbd> 標記片段終點',
+      'mgr.keyCancel': '<kbd>Esc</kbd> 取消進行中的片段',
+      'mgr.noResultsTitle': '沒有符合的書籤',
+      'mgr.noResultsText': '請換個搜尋字詞或篩選條件。',
+      'mgr.clearFilters': '清除篩選',
+      'mgr.start': '開始',
+      'mgr.end': '結束 <em>（留空 = 時間點）</em>',
+      'mgr.tagsPlaceholder': '以逗號分隔，例如：OP, 神作畫',
+      'mgr.danmakuAround': '本場景附近的彈幕',
+      'mgr.video': '影片 {sn}',
+      'mgr.episode': '第 {n} 集',
+      'mgr.playRange': '播放 {range}',
+      'mgr.openFailed': '無法開啟影片：{message}',
+      'mgr.deleted': '已刪除「{title}」',
+      'mgr.undoFailed': '復原失敗：{message}',
+      'mgr.deleteFailed': '刪除失敗：{message}',
+      'mgr.errStart': '開始時間格式應為 12:34 或 1:02:03。',
+      'mgr.errEnd': '結束時間格式應為 12:34，或留空表示時間點。',
+      'mgr.errOrder': '結束時間必須晚於開始時間。',
+      'mgr.saved': '已儲存',
+      'mgr.exported': '已匯出 {n} 個書籤',
+      'mgr.exportFailed': '匯出失敗：{message}',
+      'mgr.notExport': '不是書籤匯出檔',
+      'mgr.imported': ({ added, updated, skipped }) =>
+        `已匯入：新增 ${added}、更新 ${updated}${skipped ? `、略過 ${skipped}` : ''}`,
+      'mgr.importFailed': '匯入失敗：{message}',
+      'mgr.loadFailed': '無法載入書籤：{message}',
+    },
+
+    en: {
+      appName: 'Bahamut Danmaku Enhancer',
+      save: 'Save',
+      edit: 'Edit',
+      undo: 'Undo',
+      delete: 'Delete',
+      cancel: 'Cancel',
+      play: 'Play',
+      export: 'Export',
+      import: 'Import',
+      clear: 'Clear',
+      add: 'Add',
+      remove: 'Remove',
+
+      'popup.language': 'Language',
+      'popup.languageDesc': 'Text in the player changes after you reload the page.',
+      'popup.overlay': 'Use enhanced danmaku layer',
+      'popup.overlayDesc': 'Off shows the official danmaku instead. The official on/off, opacity, size and type settings apply to both.',
+      'popup.density': 'Show danmaku density curve',
+      'popup.densityDesc': 'A faint curve above the progress bar shows where comments are busiest.',
+      'popup.ai': 'Enable Gemini Nano AI Filter',
+      'popup.aiDesc': 'Uses local AI to block spoilers and inappropriate content.',
+      'popup.bookmarks': 'Scene Bookmarks',
+      'popup.bookmarksHint': 'On a video, press <kbd>B</kbd> to save the moment, or <span class="nowrap"><kbd>[</kbd> <kbd>]</kbd></span> to mark a clip.',
+      'popup.openManager': 'Open Bookmark Manager',
+      'popup.keywords': 'Keyword Blocklist',
+      'popup.keywordPlaceholder': 'Enter keyword to block...',
+      'popup.users': 'User Blocklist',
+      'popup.userPlaceholder': 'Enter User ID to block...',
+      'popup.debugLog': 'Debug Log',
+
+      'player.toggleOn': 'Enhanced',
+      'player.toggleOff': 'Official',
+      'player.toggleOnTitle': 'Enhanced danmaku layer (click for the official one)',
+      'player.toggleOffTitle': 'Official danmaku (click for the enhanced layer)',
+
+      'modal.title': 'Danmaku Info',
+      'modal.author': 'Author ID: {id}',
+      'modal.copy': 'Copy',
+      'modal.copied': 'Copied!',
+      'modal.blockUser': 'Block User',
+      'modal.filterText': 'Filter Text',
+      'modal.close': 'Close',
+
+      'bm.clip': 'Clip',
+      'bm.saveTitle': 'Bookmark this moment (B)',
+      'bm.clipTitle': 'Mark clip start, then end ([ and ])',
+      'bm.clipRecordingTitle': 'Clip from {time} — click or press ] to save',
+      'bm.cancelClipTitle': 'Cancel clip (Esc)',
+      'bm.listTitle': 'Bookmarks in this episode',
+      'bm.manageAll': 'Manage all ↗',
+      'bm.thisEpisode': 'This episode',
+      'bm.emptyPanel': 'Nothing saved yet. Press B to save a moment, or [ and ] to mark a clip.',
+      'bm.clipStarted': 'Clip starts at {time} — press ] (or click the button) at the end',
+      'bm.pressStartFirst': 'Press [ first to mark where the clip starts',
+      'bm.savedClip': 'Saved clip {range}',
+      'bm.savedMoment': 'Saved moment {range}',
+      'bm.notPlaying': "The episode isn't playing yet",
+      'bm.clipEnded': 'Clip ended ({range})',
+      'bm.replay': 'Replay',
+      'bm.keepWatching': 'Keep watching',
+      'bm.jumped': 'Jumped to {range}',
+      'bm.playFromHere': 'Play from here',
+      'bm.deleted': 'Deleted {range}',
+      'bm.failed': 'Bookmark failed: {message}',
+      'bm.editTitle': 'Edit bookmark',
+      'bm.title': 'Title',
+      'bm.titlePlaceholderClip': 'e.g. OP, the big fight',
+      'bm.titlePlaceholderMoment': 'e.g. best line of the season',
+      'bm.note': 'Note',
+      'bm.tags': 'Tags',
+      'bm.tagsPlaceholder': 'Comma separated',
+      'bm.updated': 'Bookmark updated',
+      'bm.untitledClip': 'Untitled clip',
+      'bm.untitledMoment': 'Untitled moment',
+
+      'mgr.pageTitle': 'Scene Bookmarks',
+      'mgr.summaryEmpty': 'Your collection of favorite scenes',
+      'mgr.summary': '{scenes} · {clips} · {works}',
+      'mgr.scenes': ({ n }) => plural(n, 'scene'),
+      'mgr.clips': ({ n }) => plural(n, 'clip'),
+      'mgr.works': ({ n }) => plural(n, 'work'),
+      'mgr.searchPlaceholder': 'Search titles, notes, tags, danmaku…',
+      'mgr.searchLabel': 'Search bookmarks',
+      'mgr.filters': 'Filters',
+      'mgr.type': 'Type',
+      'mgr.all': 'All',
+      'mgr.kindMoments': 'Moments',
+      'mgr.kindClips': 'Clips',
+      'mgr.work': 'Work',
+      'mgr.allWorks': 'All works',
+      'mgr.sort': 'Sort',
+      'mgr.groupByWork': 'Group by work',
+      'mgr.newest': 'Newest first',
+      'mgr.oldest': 'Oldest first',
+      'mgr.emptyTitle': 'No scenes saved yet',
+      'mgr.emptyText': 'While watching on ani.gamer.com.tw, hover the player and use the toolbar in the top-right corner, or use the keyboard:',
+      'mgr.keyMoment': '<kbd>B</kbd> save the current moment',
+      'mgr.keyClip': '<kbd>[</kbd> mark where a clip starts, <kbd>]</kbd> mark where it ends',
+      'mgr.keyCancel': '<kbd>Esc</kbd> cancel a clip in progress',
+      'mgr.noResultsTitle': 'No bookmarks match',
+      'mgr.noResultsText': 'Try a different search or filter.',
+      'mgr.clearFilters': 'Clear filters',
+      'mgr.start': 'Start',
+      'mgr.end': 'End <em>(blank = moment)</em>',
+      'mgr.tagsPlaceholder': 'Comma separated, e.g. OP, 神作畫',
+      'mgr.danmakuAround': 'Danmaku around this scene',
+      'mgr.video': 'Video {sn}',
+      'mgr.episode': 'Ep. {n}',
+      'mgr.playRange': 'Play {range}',
+      'mgr.openFailed': "Couldn't open the video: {message}",
+      'mgr.deleted': 'Deleted “{title}”',
+      'mgr.undoFailed': 'Undo failed: {message}',
+      'mgr.deleteFailed': 'Delete failed: {message}',
+      'mgr.errStart': 'Start should look like 12:34 or 1:02:03.',
+      'mgr.errEnd': 'End should look like 12:34, or be left blank for a moment.',
+      'mgr.errOrder': 'End must be after start.',
+      'mgr.saved': 'Saved',
+      'mgr.exported': ({ n }) => `Exported ${plural(n, 'bookmark')}`,
+      'mgr.exportFailed': 'Export failed: {message}',
+      'mgr.notExport': 'not a bookmark export file',
+      'mgr.imported': ({ added, updated, skipped }) =>
+        `Imported ${added} new, ${updated} updated${skipped ? `, ${skipped} skipped` : ''}`,
+      'mgr.importFailed': 'Import failed: {message}',
+      'mgr.loadFailed': "Couldn't load bookmarks: {message}",
+    },
+  };
+
+  let language = DEFAULT_LANGUAGE;
+
+  function setLanguage(lang) {
+    language = Object.hasOwn(MESSAGES, lang) ? lang : DEFAULT_LANGUAGE;
+    if (typeof document !== 'undefined' && document.documentElement) {
+      document.documentElement.lang = language;
+    }
+  }
+
+  async function load() {
+    const { settings } = await chrome.storage.local.get('settings');
+    setLanguage(settings && settings.uiLanguage);
+  }
+
+  function t(key, vars = {}) {
+    const message = MESSAGES[language][key] ?? MESSAGES.en[key] ?? key;
+    if (typeof message === 'function') return message(vars);
+    return message.replace(/\{(\w+)\}/g, (m, name) => (name in vars ? String(vars[name]) : m));
+  }
+
+  // Fills elements marked data-i18n (text), data-i18n-html (this file's
+  // markup), data-i18n-title, data-i18n-placeholder and data-i18n-aria-label.
+  function apply(root = document) {
+    root.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+    root.querySelectorAll('[data-i18n-html]').forEach(el => { el.innerHTML = t(el.dataset.i18nHtml); });
+    root.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.dataset.i18nTitle); });
+    root.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+    root.querySelectorAll('[data-i18n-aria-label]').forEach(el => {
+      el.setAttribute('aria-label', t(el.dataset.i18nAriaLabel));
+    });
+  }
+
+  return {
+    get language() { return language; },
+    setLanguage,
+    load,
+    t,
+    apply,
+  };
+})();

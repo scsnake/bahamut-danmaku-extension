@@ -26,6 +26,7 @@ const BM_ICONS = {
 
 function initBookmarks({ video, container, getVideoSn, getDanmaku }) {
   const { formatTime, formatRange, isClip, displayTitle } = DmkBookmarks;
+  const { t } = DmkI18n;
   const videoSn = () => String(getVideoSn());
 
   let episodeBookmarks = [];
@@ -39,22 +40,21 @@ function initBookmarks({ video, container, getVideoSn, getDanmaku }) {
   root.id = 'dmk-bm-root';
 
   const bar = el('div', 'dmk-bm-bar');
-  const momentBtn = barButton(BM_ICONS.star, 'Save', 'Bookmark this moment (B)', true);
-  const clipBtn = barButton(BM_ICONS.clip, 'Clip', 'Mark clip start, then end ([ and ])');
+  const momentBtn = barButton(BM_ICONS.star, t('save'), t('bm.saveTitle'), true);
+  const clipBtn = barButton(BM_ICONS.clip, t('bm.clip'), t('bm.clipTitle'));
   const cancelClipBtn = el('button', 'dmk-bm-btn dmk-bm-cancel', '×');
-  cancelClipBtn.title = 'Cancel clip (Esc)';
+  cancelClipBtn.title = t('bm.cancelClipTitle');
   cancelClipBtn.hidden = true;
-  const listBtn = barButton(BM_ICONS.list, '0', 'Bookmarks in this episode');
+  const listBtn = barButton(BM_ICONS.list, '0', t('bm.listTitle'));
   bar.append(momentBtn.btn, clipBtn.btn, cancelClipBtn, listBtn.btn);
 
   const panel = el('div', 'dmk-bm-panel');
   panel.hidden = true;
   const panelHead = el('div', 'dmk-bm-panel-head');
-  const manageBtn = el('button', 'dmk-bm-link', 'Manage all ↗');
-  panelHead.append(el('span', 'dmk-bm-panel-title', 'This episode'), manageBtn);
+  const manageBtn = el('button', 'dmk-bm-link', t('bm.manageAll'));
+  panelHead.append(el('span', 'dmk-bm-panel-title', t('bm.thisEpisode')), manageBtn);
   const panelList = el('ul', 'dmk-bm-panel-list');
-  const panelEmpty = el('p', 'dmk-bm-panel-empty',
-    'Nothing saved yet. Press B to save a moment, or [ and ] to mark a clip.');
+  const panelEmpty = el('p', 'dmk-bm-panel-empty', t('bm.emptyPanel'));
   panel.append(panelHead, panelList, panelEmpty);
 
   const toasts = el('div', 'dmk-bm-toasts');
@@ -105,12 +105,12 @@ function initBookmarks({ video, container, getVideoSn, getDanmaku }) {
     if (!ensurePlayable()) return;
     pendingClip = { start: video.currentTime, thumb: captureThumb() };
     renderClipState();
-    toast(`Clip starts at ${formatTime(pendingClip.start)} — press ] (or click the button) at the end`);
+    toast(t('bm.clipStarted', { time: formatTime(pendingClip.start) }));
   }
 
   function finishClip() {
     if (!pendingClip) {
-      toast('Press [ first to mark where the clip starts');
+      toast(t('bm.pressStartFirst'));
       return;
     }
     if (!ensurePlayable()) return;
@@ -144,9 +144,9 @@ function initBookmarks({ video, container, getVideoSn, getDanmaku }) {
     };
     try {
       const { bookmark: saved } = await DmkBookmarks.send('BOOKMARK_ADD', { bookmark, thumb });
-      toast(`Saved ${isClip(saved) ? 'clip' : 'moment'} ${formatRange(saved)}`, [
-        { label: 'Edit', onClick: () => openEditor(saved) },
-        { label: 'Undo', onClick: () => DmkBookmarks.send('BOOKMARK_DELETE', { ids: [saved.id] }).catch(reportError) },
+      toast(t(isClip(saved) ? 'bm.savedClip' : 'bm.savedMoment', { range: formatRange(saved) }), [
+        { label: t('edit'), onClick: () => openEditor(saved) },
+        { label: t('undo'), onClick: () => DmkBookmarks.send('BOOKMARK_DELETE', { ids: [saved.id] }).catch(reportError) },
       ], 6000);
     } catch (err) {
       reportError(err);
@@ -155,7 +155,7 @@ function initBookmarks({ video, container, getVideoSn, getDanmaku }) {
 
   function ensurePlayable() {
     if (Number.isFinite(video.duration) && video.duration > 0 && !isAdPlaying()) return true;
-    toast("The episode isn't playing yet");
+    toast(t('bm.notPlaying'));
     return false;
   }
 
@@ -238,9 +238,9 @@ function initBookmarks({ video, container, getVideoSn, getDanmaku }) {
       const { start, end } = clipGuard;
       clipGuard = null;
       video.pause();
-      toast(`Clip ended (${formatRange({ start, end })})`, [
-        { label: 'Replay', onClick: () => playRange(start, end) },
-        { label: 'Keep watching', onClick: () => video.play().catch(() => {}) },
+      toast(t('bm.clipEnded', { range: formatRange({ start, end }) }), [
+        { label: t('bm.replay'), onClick: () => playRange(start, end) },
+        { label: t('bm.keepWatching'), onClick: () => video.play().catch(() => {}) },
       ], 8000);
     }
   });
@@ -279,7 +279,7 @@ function initBookmarks({ video, container, getVideoSn, getDanmaku }) {
           video.currentTime = target.start;
         }
       }, { once: true });
-      toast(`Jumped to ${formatRange(target)}`);
+      toast(t('bm.jumped', { range: formatRange(target) }));
     });
   }
 
@@ -328,10 +328,10 @@ function initBookmarks({ video, container, getVideoSn, getDanmaku }) {
     clipBtn.btn.classList.toggle('dmk-bm-recording', recording);
     clipBtn.label.textContent = recording
       ? formatTime(Math.abs(video.currentTime - pendingClip.start))
-      : 'Clip';
+      : t('bm.clip');
     clipBtn.btn.title = recording
-      ? `Clip from ${formatTime(pendingClip.start)} — click or press ] to save`
-      : 'Mark clip start, then end ([ and ])';
+      ? t('bm.clipRecordingTitle', { time: formatTime(pendingClip.start) })
+      : t('bm.clipTitle');
     cancelClipBtn.hidden = !recording;
     syncActive();
   }
@@ -345,7 +345,7 @@ function initBookmarks({ video, container, getVideoSn, getDanmaku }) {
   function renderRow(b) {
     const li = el('li', 'dmk-bm-row');
     const jump = el('button', 'dmk-bm-row-main');
-    jump.title = b.note || 'Play from here';
+    jump.title = b.note || t('bm.playFromHere');
     jump.append(
       el('span', 'dmk-bm-row-time', formatRange(b)),
       el('span', `dmk-bm-row-title${b.title ? '' : ' dmk-bm-untitled'}`, displayTitle(b))
@@ -353,15 +353,15 @@ function initBookmarks({ video, container, getVideoSn, getDanmaku }) {
     jump.addEventListener('click', () => playRange(b.start, b.end));
 
     const edit = el('button', 'dmk-bm-icon-btn', '✎');
-    edit.title = 'Edit';
+    edit.title = t('edit');
     edit.addEventListener('click', () => openEditor(b));
 
     const del = el('button', 'dmk-bm-icon-btn dmk-bm-danger', '×');
-    del.title = 'Delete';
+    del.title = t('delete');
     del.addEventListener('click', async () => {
       try {
         const undo = await DmkBookmarks.removeWithUndo(b);
-        toast(`Deleted ${formatRange(b)}`, [{ label: 'Undo', onClick: () => undo().catch(reportError) }], 6000);
+        toast(t('bm.deleted', { range: formatRange(b) }), [{ label: t('undo'), onClick: () => undo().catch(reportError) }], 6000);
       } catch (err) {
         reportError(err);
       }
@@ -377,24 +377,24 @@ function initBookmarks({ video, container, getVideoSn, getDanmaku }) {
   }
 
   function toast(message, actions = [], timeout = 3500) {
-    const t = el('div', 'dmk-bm-toast');
-    t.appendChild(el('span', 'dmk-bm-toast-msg', message));
+    const node = el('div', 'dmk-bm-toast');
+    node.appendChild(el('span', 'dmk-bm-toast-msg', message));
     for (const action of actions) {
       const btn = el('button', 'dmk-bm-toast-btn', action.label);
       btn.addEventListener('click', () => {
-        t.remove();
+        node.remove();
         action.onClick();
       });
-      t.appendChild(btn);
+      node.appendChild(btn);
     }
-    toasts.appendChild(t);
+    toasts.appendChild(node);
     while (toasts.children.length > 3) toasts.firstChild.remove();
-    setTimeout(() => t.remove(), timeout);
+    setTimeout(() => node.remove(), timeout);
   }
 
   function reportError(err) {
     console.error('[Danmaku Enhancer] Bookmark error:', err);
-    toast(`Bookmark failed: ${err.message}`);
+    toast(t('bm.failed', { message: err.message }));
   }
 
   // ---- Quick editor -----------------------------------------------------
@@ -406,22 +406,22 @@ function initBookmarks({ video, container, getVideoSn, getDanmaku }) {
 
     const form = el('form', 'dmk-bm-editor');
     const head = el('div', 'dmk-bm-editor-head');
-    head.append(el('span', 'dmk-bm-editor-title', 'Edit bookmark'), el('span', 'dmk-bm-editor-time', formatRange(b)));
+    head.append(el('span', 'dmk-bm-editor-title', t('bm.editTitle')), el('span', 'dmk-bm-editor-time', formatRange(b)));
 
-    const title = field('Title', el('input'));
+    const title = field(t('bm.title'), el('input'));
     title.input.value = b.title;
-    title.input.placeholder = isClip(b) ? 'e.g. OP, the big fight' : 'e.g. best line of the season';
-    const note = field('Note', el('textarea'));
+    title.input.placeholder = t(isClip(b) ? 'bm.titlePlaceholderClip' : 'bm.titlePlaceholderMoment');
+    const note = field(t('bm.note'), el('textarea'));
     note.input.rows = 3;
     note.input.value = b.note;
-    const tags = field('Tags', el('input'));
+    const tags = field(t('bm.tags'), el('input'));
     tags.input.value = b.tags.join(', ');
-    tags.input.placeholder = 'Comma separated';
+    tags.input.placeholder = t('bm.tagsPlaceholder');
 
     const actions = el('div', 'dmk-bm-editor-actions');
-    const cancel = el('button', 'dmk-bm-secondary', 'Cancel');
+    const cancel = el('button', 'dmk-bm-secondary', t('cancel'));
     cancel.type = 'button';
-    const save = el('button', 'dmk-bm-primary', 'Save');
+    const save = el('button', 'dmk-bm-primary', t('save'));
     save.type = 'submit';
     actions.append(cancel, save);
     form.append(head, title.wrap, note.wrap, tags.wrap, actions);
@@ -443,7 +443,7 @@ function initBookmarks({ video, container, getVideoSn, getDanmaku }) {
           patch: { title: title.input.value, note: note.input.value, tags: tags.input.value },
         });
         close();
-        toast('Bookmark updated');
+        toast(t('bm.updated'));
       } catch (err) {
         save.disabled = false;
         reportError(err);

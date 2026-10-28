@@ -3,6 +3,8 @@
 // Helpers shared by every context that touches scene bookmarks: the content
 // script, the background service worker (via importScripts) and the manager
 // page. Loaded as a classic script everywhere, so it exposes one global.
+// displayTitle() needs i18n.js, which the content scripts and the manager
+// load; the background never calls it.
 //
 // Storage layout (chrome.storage.local):
 //   bookmarks        → array of bookmark metadata (small; safe to read often)
@@ -52,7 +54,7 @@ const DmkBookmarks = (() => {
   }
 
   function displayTitle(b) {
-    return b.title || (isClip(b) ? 'Untitled clip' : 'Untitled moment');
+    return b.title || DmkI18n.t(isClip(b) ? 'bm.untitledClip' : 'bm.untitledMoment');
   }
 
   function deepLink(b) {

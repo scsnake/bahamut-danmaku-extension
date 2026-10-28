@@ -48,20 +48,16 @@ chrome.storage.onChanged.addListener((changes, area) => {
 });
 
 function workTitle(b) {
-  return b.animeTitle || b.episodeTitle || `Video ${b.videoSn}`;
+  return b.animeTitle || b.episodeTitle || DmkI18n.t('mgr.video', { sn: b.videoSn });
 }
 
 function episodeLabel(b) {
   if (!b.episode) return '';
-  return /^\d+(\.\d+)?$/.test(b.episode) ? `Ep. ${b.episode}` : b.episode;
+  return /^\d+(\.\d+)?$/.test(b.episode) ? DmkI18n.t('mgr.episode', { n: b.episode }) : b.episode;
 }
 
 function imageFor(b) {
   return state.thumbs[b.id] || b.coverUrl || '';
-}
-
-function plural(n, word) {
-  return `${n} ${word}${n === 1 ? '' : 's'}`;
 }
 
 function matches(b) {
@@ -135,15 +131,19 @@ function renderSummary(all) {
   const clips = all.filter(isClip).length;
   const works = new Set(all.map(workTitle)).size;
   $('summary').textContent = all.length
-    ? `${plural(all.length, 'scene')} · ${plural(clips, 'clip')} · ${plural(works, 'work')}`
-    : 'Your collection of favorite scenes';
+    ? DmkI18n.t('mgr.summary', {
+      scenes: DmkI18n.t('mgr.scenes', { n: all.length }),
+      clips: DmkI18n.t('mgr.clips', { n: clips }),
+      works: DmkI18n.t('mgr.works', { n: works }),
+    })
+    : DmkI18n.t('mgr.summaryEmpty');
 }
 
 function renderWorkOptions(all) {
   const titles = [...new Set(all.map(workTitle))].sort((a, b) => a.localeCompare(b, 'zh-Hant'));
   if (state.work && !titles.includes(state.work)) state.work = '';
   const select = $('workFilter');
-  select.replaceChildren(new Option('All works', ''), ...titles.map(t => new Option(t, t)));
+  select.replaceChildren(new Option(DmkI18n.t('mgr.allWorks'), ''), ...titles.map(t => new Option(t, t)));
   select.value = state.work;
 }
 
@@ -195,7 +195,7 @@ function renderGroup(group) {
 
   const clips = group.items.filter(isClip).length;
   node.querySelector('.group-count').textContent =
-    `${plural(group.items.length, 'scene')}${clips ? ` · ${plural(clips, 'clip')}` : ''}`;
+    DmkI18n.t('mgr.scenes', { n: group.items.length }) + (clips ? ` · ${DmkI18n.t('mgr.clips', { n: clips })}` : '');
   node.querySelector('.grid').append(...group.items.map(b => renderCard(b, false)));
   return node;
 }
@@ -252,7 +252,7 @@ function renderCard(b, showWork) {
   }));
 
   const thumbBtn = card.querySelector('.thumb');
-  thumbBtn.title = `Play ${formatRange(b)}`;
+  thumbBtn.title = DmkI18n.t('mgr.playRange', { range: formatRange(b) });
   thumbBtn.addEventListener('click', () => playBookmark(b));
   card.querySelector('.act-play').addEventListener('click', () => playBookmark(b));
   card.querySelector('.act-edit').addEventListener('click', () => openEditor(b));
@@ -280,7 +280,7 @@ async function playBookmark(b) {
     }
     await chrome.tabs.create({ url: DmkBookmarks.deepLink(b) });
   } catch (err) {
-    showToast(`Couldn't open the video: ${err.message}`);
+    showToast(DmkI18n.t('mgr.openFailed', { message: err.message }));
   }
 }
 
@@ -295,12 +295,12 @@ function sameVideo(url, sn) {
 async function deleteBookmark(b) {
   try {
     const undo = await DmkBookmarks.removeWithUndo(b);
-    showToast(`Deleted “${displayTitle(b)}”`, {
-      label: 'Undo',
-      onClick: () => undo().catch(err => showToast(`Undo failed: ${err.message}`)),
+    showToast(DmkI18n.t('mgr.deleted', { title: displayTitle(b) }), {
+      label: DmkI18n.t('undo'),
+      onClick: () => undo().catch(err => showToast(DmkI18n.t('mgr.undoFailed', { message: err.message }))),
     });
   } catch (err) {
-    showToast(`Delete failed: ${err.message}`);
+    showToast(DmkI18n.t('mgr.deleteFailed', { message: err.message }));
   }
 }
 
@@ -344,9 +344,9 @@ $('editorForm').addEventListener('submit', async (e) => {
   const endText = $('edEnd').value.trim();
   const end = endText ? parseTime(endText) : null;
   let error = '';
-  if (Number.isNaN(start)) error = 'Start should look like 12:34 or 1:02:03.';
-  else if (Number.isNaN(end)) error = 'End should look like 12:34, or be left blank for a moment.';
-  else if (end != null && end <= start) error = 'End must be after start.';
+  if (Number.isNaN(start)) error = DmkI18n.t('mgr.errStart');
+  else if (Number.isNaN(end)) error = DmkI18n.t('mgr.errEnd');
+  else if (end != null && end <= start) error = DmkI18n.t('mgr.errOrder');
   if (error) {
     $('edError').textContent = error;
     return;
@@ -365,7 +365,7 @@ $('editorForm').addEventListener('submit', async (e) => {
       },
     });
     $('editor').close();
-    showToast('Saved');
+    showToast(DmkI18n.t('mgr.saved'));
   } catch (err) {
     $('edError').textContent = err.message;
   } finally {
@@ -409,9 +409,9 @@ $('exportBtn').addEventListener('click', async () => {
     a.download = `scene-bookmarks-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    showToast(`Exported ${plural(bookmarks.length, 'bookmark')}`);
+    showToast(DmkI18n.t('mgr.exported', { n: bookmarks.length }));
   } catch (err) {
-    showToast(`Export failed: ${err.message}`);
+    showToast(DmkI18n.t('mgr.exportFailed', { message: err.message }));
   }
 });
 
@@ -422,14 +422,14 @@ $('importFile').addEventListener('change', async (e) => {
   if (!file) return;
   try {
     const data = JSON.parse(await file.text());
-    if (!data || !Array.isArray(data.bookmarks)) throw new Error('not a bookmark export file');
+    if (!data || !Array.isArray(data.bookmarks)) throw new Error(DmkI18n.t('mgr.notExport'));
     const { added, updated, skipped } = await DmkBookmarks.send('BOOKMARK_IMPORT', {
       bookmarks: data.bookmarks,
       thumbs: data.thumbs || {},
     });
-    showToast(`Imported ${added} new, ${updated} updated${skipped ? `, ${skipped} skipped` : ''}`);
+    showToast(DmkI18n.t('mgr.imported', { added, updated, skipped }));
   } catch (err) {
-    showToast(`Import failed: ${err.message}`);
+    showToast(DmkI18n.t('mgr.importFailed', { message: err.message }));
   }
 });
 
@@ -497,4 +497,12 @@ function writePref(key, value) {
   try { localStorage.setItem(`dmk.${key}`, value); } catch (_) {}
 }
 
-load().catch(err => showToast(`Couldn't load bookmarks: ${err.message}`));
+// The page and its templates are translated before the first render.
+DmkI18n.load()
+  .then(() => {
+    DmkI18n.apply();
+    DmkI18n.apply($('groupTpl').content);
+    DmkI18n.apply($('cardTpl').content);
+    return load();
+  })
+  .catch(err => showToast(DmkI18n.t('mgr.loadFailed', { message: err.message })));

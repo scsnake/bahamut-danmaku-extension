@@ -17,6 +17,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     keywordBlocklist: [],
     userBlocklist: []
   };
+  DmkI18n.setLanguage(settings.uiLanguage);
+  DmkI18n.apply();
+
+  const uiLanguage = document.getElementById('uiLanguage');
+  uiLanguage.value = DmkI18n.language;
+  uiLanguage.addEventListener('change', async (e) => {
+    settings.uiLanguage = e.target.value;
+    DmkI18n.setLanguage(settings.uiLanguage);
+    DmkI18n.apply();
+    renderList(keywordList, settings.keywordBlocklist, removeKeyword);
+    renderList(userList, settings.userBlocklist, removeUser);
+    await saveSettings();
+  });
 
   const { bookmarks = [] } = await chrome.storage.local.get("bookmarks");
   document.getElementById('bookmarkCount').textContent = bookmarks.length ? `(${bookmarks.length})` : '';
@@ -111,7 +124,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       
       const delBtn = document.createElement('button');
       delBtn.className = 'delete-btn';
-      delBtn.innerHTML = '&times;';
+      delBtn.textContent = '×';
+      delBtn.title = DmkI18n.t('remove');
       delBtn.onclick = () => onRemove(item);
       
       li.appendChild(delBtn);

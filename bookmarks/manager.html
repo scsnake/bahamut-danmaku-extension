@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-TW">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Scene Bookmarks</title>
+  <title data-i18n="mgr.pageTitle">Scene Bookmarks</title>
   <link rel="stylesheet" href="manager.css">
 </head>
 <body>
@@ -12,32 +12,32 @@
       <div class="brand">
         <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2l2.7 5.5 6 .9-4.4 4.2 1 6-5.3-2.8-5.3 2.8 1-6-4.4-4.2 6-.9z"/></svg>
         <div>
-          <h1>Scene Bookmarks</h1>
+          <h1 data-i18n="mgr.pageTitle"></h1>
           <p id="summary" class="summary"></p>
         </div>
       </div>
-      <input id="search" class="search" type="search" placeholder="Search titles, notes, tags, danmaku…" aria-label="Search bookmarks">
+      <input id="search" class="search" type="search" data-i18n-placeholder="mgr.searchPlaceholder" data-i18n-aria-label="mgr.searchLabel">
       <div class="io">
-        <button id="exportBtn" class="btn ghost" type="button">Export</button>
-        <button id="importBtn" class="btn ghost" type="button">Import</button>
+        <button id="exportBtn" class="btn ghost" type="button" data-i18n="export"></button>
+        <button id="importBtn" class="btn ghost" type="button" data-i18n="import"></button>
         <input id="importFile" type="file" accept="application/json,.json" hidden>
       </div>
     </div>
   </header>
 
-  <nav class="filters" aria-label="Filters">
-    <div class="segmented" id="kindFilter" role="group" aria-label="Type">
-      <button type="button" data-kind="all" class="active">All</button>
-      <button type="button" data-kind="moment">Moments</button>
-      <button type="button" data-kind="clip">Clips</button>
+  <nav class="filters" data-i18n-aria-label="mgr.filters">
+    <div class="segmented" id="kindFilter" role="group" data-i18n-aria-label="mgr.type">
+      <button type="button" data-kind="all" class="active" data-i18n="mgr.all"></button>
+      <button type="button" data-kind="moment" data-i18n="mgr.kindMoments"></button>
+      <button type="button" data-kind="clip" data-i18n="mgr.kindClips"></button>
     </div>
-    <select id="workFilter" aria-label="Work">
-      <option value="">All works</option>
+    <select id="workFilter" data-i18n-aria-label="mgr.work">
+      <option value="" data-i18n="mgr.allWorks"></option>
     </select>
-    <select id="sortMode" aria-label="Sort">
-      <option value="work">Group by work</option>
-      <option value="newest">Newest first</option>
-      <option value="oldest">Oldest first</option>
+    <select id="sortMode" data-i18n-aria-label="mgr.sort">
+      <option value="work" data-i18n="mgr.groupByWork"></option>
+      <option value="newest" data-i18n="mgr.newest"></option>
+      <option value="oldest" data-i18n="mgr.oldest"></option>
     </select>
     <div id="tagFilter" class="tag-filter"></div>
   </nav>
@@ -46,19 +46,19 @@
 
   <section id="empty" class="state" hidden>
     <svg class="state-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2l2.7 5.5 6 .9-4.4 4.2 1 6-5.3-2.8-5.3 2.8 1-6-4.4-4.2 6-.9z"/></svg>
-    <h2>No scenes saved yet</h2>
-    <p>While watching on ani.gamer.com.tw, hover the player and use the toolbar in the top-right corner, or use the keyboard:</p>
+    <h2 data-i18n="mgr.emptyTitle"></h2>
+    <p data-i18n="mgr.emptyText"></p>
     <ul class="keys">
-      <li><kbd>B</kbd> save the current moment</li>
-      <li><kbd>[</kbd> mark where a clip starts, <kbd>]</kbd> mark where it ends</li>
-      <li><kbd>Esc</kbd> cancel a clip in progress</li>
+      <li data-i18n-html="mgr.keyMoment"></li>
+      <li data-i18n-html="mgr.keyClip"></li>
+      <li data-i18n-html="mgr.keyCancel"></li>
     </ul>
   </section>
 
   <section id="noResults" class="state" hidden>
-    <h2>No bookmarks match</h2>
-    <p>Try a different search or filter.</p>
-    <button id="clearFilters" class="btn" type="button">Clear filters</button>
+    <h2 data-i18n="mgr.noResultsTitle"></h2>
+    <p data-i18n="mgr.noResultsText"></p>
+    <button id="clearFilters" class="btn" type="button" data-i18n="mgr.clearFilters"></button>
   </section>
 
   <template id="groupTpl">
@@ -90,9 +90,9 @@
         <div class="card-tags"></div>
       </div>
       <div class="card-actions">
-        <button class="act-play" type="button">Play</button>
-        <button class="act-edit" type="button">Edit</button>
-        <button class="act-delete" type="button">Delete</button>
+        <button class="act-play" type="button" data-i18n="play"></button>
+        <button class="act-edit" type="button" data-i18n="edit"></button>
+        <button class="act-delete" type="button" data-i18n="delete"></button>
       </div>
     </article>
   </template>
@@ -106,38 +106,38 @@
         <p id="edEpisode" class="editor-episode"></p>
         <div class="editor-times">
           <label class="field">
-            <span>Start</span>
+            <span data-i18n="mgr.start"></span>
             <input id="edStart" inputmode="decimal" placeholder="m:ss" autocomplete="off">
           </label>
           <label class="field">
-            <span>End <em>(blank = moment)</em></span>
+            <span data-i18n-html="mgr.end"></span>
             <input id="edEnd" inputmode="decimal" placeholder="m:ss" autocomplete="off">
           </label>
         </div>
         <label class="field">
-          <span>Title</span>
+          <span data-i18n="bm.title"></span>
           <input id="edTitle" maxlength="200" autocomplete="off">
         </label>
         <label class="field">
-          <span>Note</span>
+          <span data-i18n="bm.note"></span>
           <textarea id="edNote" rows="3" maxlength="5000"></textarea>
         </label>
         <label class="field">
-          <span>Tags</span>
-          <input id="edTags" placeholder="Comma separated, e.g. OP, 神作畫" autocomplete="off">
+          <span data-i18n="bm.tags"></span>
+          <input id="edTags" data-i18n-placeholder="mgr.tagsPlaceholder" autocomplete="off">
         </label>
         <p id="edError" class="error" role="alert"></p>
         <details id="edDanmakuWrap" class="danmaku">
-          <summary>Danmaku around this scene (<span id="edDanmakuCount"></span>)</summary>
+          <summary><span data-i18n="mgr.danmakuAround"></span> (<span id="edDanmakuCount"></span>)</summary>
           <ul id="edDanmaku"></ul>
         </details>
       </div>
       <footer class="editor-actions">
-        <button id="edDelete" class="btn ghost danger" type="button">Delete</button>
+        <button id="edDelete" class="btn ghost danger" type="button" data-i18n="delete"></button>
         <span class="spacer"></span>
-        <button id="edPlay" class="btn ghost" type="button">Play</button>
-        <button id="edCancel" class="btn ghost" type="button">Cancel</button>
-        <button id="edSave" class="btn primary" type="submit">Save</button>
+        <button id="edPlay" class="btn ghost" type="button" data-i18n="play"></button>
+        <button id="edCancel" class="btn ghost" type="button" data-i18n="cancel"></button>
+        <button id="edSave" class="btn primary" type="submit" data-i18n="save"></button>
       </footer>
     </form>
   </dialog>
@@ -147,6 +147,7 @@
     <button id="toastAction" type="button" hidden></button>
   </div>
 
+  <script src="../i18n.js"></script>
   <script src="common.js"></script>
   <script src="manager.js"></script>
 </body>

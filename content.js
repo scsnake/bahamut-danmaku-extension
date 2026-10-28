@@ -205,6 +205,7 @@ async function init() {
     keywordBlocklist: [],
     userBlocklist: []
   };
+  DmkI18n.setLanguage(settings.uiLanguage);
 
   let danmuLayer;
   try {
@@ -245,6 +246,8 @@ async function init() {
     const prev = settings;
     settings = changes.settings.newValue || {};
     dlog('settings', { overlayEnabled: overlayOn(), aiFilterEnabled: settings.aiFilterEnabled });
+    DmkI18n.setLanguage(settings.uiLanguage);
+    updatePlayerToggle();
     processDanmaku();
     removeOnScreen(el => bySn.get(Number(el.dataset.sn))?.isBlocked);
     densityCurve.update();
@@ -317,11 +320,9 @@ function addPlayerToggle() {
 function updatePlayerToggle() {
   if (!playerToggle) return;
   const on = overlayOn();
-  playerToggle.textContent = on ? '增強' : '官方';
+  playerToggle.textContent = DmkI18n.t(on ? 'player.toggleOn' : 'player.toggleOff');
   playerToggle.classList.toggle('is-on', on);
-  playerToggle.title = on
-    ? 'Enhanced danmaku layer (click for the official one)'
-    : 'Official danmaku (click for the enhanced layer)';
+  playerToggle.title = DmkI18n.t(on ? 'player.toggleOnTitle' : 'player.toggleOffTitle');
 }
 
 // Loads (or reloads) the list. On a reload, keeps what is on screen and the
@@ -857,7 +858,7 @@ function showDanmakuModal(d) {
   header.className = 'modal-header';
   const title = document.createElement('span');
   title.className = 'modal-title';
-  title.textContent = 'Danmaku Info';
+  title.textContent = DmkI18n.t('modal.title');
   const timeEl = document.createElement('span');
   timeEl.className = 'modal-time';
   timeEl.textContent = timeStr;
@@ -869,26 +870,26 @@ function showDanmakuModal(d) {
 
   const meta = document.createElement('div');
   meta.className = 'modal-meta';
-  meta.textContent = `Author ID: ${d.userid}`;
+  meta.textContent = DmkI18n.t('modal.author', { id: d.userid });
 
   const actions = document.createElement('div');
   actions.className = 'modal-actions';
 
   const copyBtn = document.createElement('button');
   copyBtn.className = 'btn-copy';
-  copyBtn.textContent = 'Copy';
+  copyBtn.textContent = DmkI18n.t('modal.copy');
 
   const blockUserBtn = document.createElement('button');
   blockUserBtn.className = 'btn-danger btn-block-user';
-  blockUserBtn.textContent = 'Block User';
+  blockUserBtn.textContent = DmkI18n.t('modal.blockUser');
 
   const filterTextBtn = document.createElement('button');
   filterTextBtn.className = 'btn-danger btn-filter-text';
-  filterTextBtn.textContent = 'Filter Text';
+  filterTextBtn.textContent = DmkI18n.t('modal.filterText');
 
   const closeBtn = document.createElement('button');
   closeBtn.className = 'btn-secondary btn-close';
-  closeBtn.textContent = 'Close';
+  closeBtn.textContent = DmkI18n.t('modal.close');
 
   actions.append(copyBtn, blockUserBtn, filterTextBtn, closeBtn);
   modal.append(header, content, meta, actions);
@@ -903,7 +904,7 @@ function showDanmakuModal(d) {
 
   copyBtn.onclick = () => {
     navigator.clipboard.writeText(d.text);
-    copyBtn.textContent = 'Copied!';
+    copyBtn.textContent = DmkI18n.t('modal.copied');
   };
 
   blockUserBtn.onclick = async () => {
