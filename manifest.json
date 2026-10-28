@@ -18,7 +18,7 @@
     {
       "matches": ["*://ani.gamer.com.tw/animeVideo.php*"],
       "css": ["content.css", "bookmarks/content-bookmarks.css"],
-      "js": ["bookmarks/common.js", "bookmarks/content-bookmarks.js", "content.js"],
+      "js": ["bookmarks/common.js", "bookmarks/content-bookmarks.js", "density.js", "content.js"],
       "run_at": "document_end"
     }
   ],

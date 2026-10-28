@@ -9,6 +9,7 @@ chrome.runtime.onInstalled.addListener(async () => {
     await chrome.storage.local.set({
       settings: {
         overlayEnabled: true,
+        densityEnabled: true,
         aiFilterEnabled: true,
         aiStrictness: 'moderate', // 'low', 'moderate', 'high'
         keywordBlocklist: [],

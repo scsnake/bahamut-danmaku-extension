@@ -32,6 +32,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     await saveSettings();
   });
 
+  const densityToggle = document.getElementById('densityToggle');
+  densityToggle.checked = settings.densityEnabled !== false;
+  densityToggle.addEventListener('change', async (e) => {
+    settings.densityEnabled = e.target.checked;
+    await saveSettings();
+  });
+
   const debugCount = document.getElementById('debugCount');
   const showDebugCount = async () => {
     const { debugLog = [] } = await chrome.storage.local.get("debugLog");

@@ -27,6 +27,7 @@ const COUNT_SAMPLE_MS = 250;
 
 let currentVideoSn = null;
 let bookmarks = null;
+let densityCurve = null;
 let videoElement = null;
 let playerElement = null;
 let overlayElement = null;
@@ -225,6 +226,12 @@ async function init() {
   onResize();
   addPlayerToggle();
   applyOverlayMode();
+  densityCurve = initDensityCurve({
+    video: videoElement,
+    player: playerElement,
+    getDanmaku: () => danmakuData,
+    isEnabled: () => settings.densityEnabled !== false,
+  });
   dlog('player', {
     area: [areaWidth, areaHeight],
     video: [videoElement.clientWidth, videoElement.clientHeight],
@@ -240,6 +247,7 @@ async function init() {
     dlog('settings', { overlayEnabled: overlayOn(), aiFilterEnabled: settings.aiFilterEnabled });
     processDanmaku();
     removeOnScreen(el => bySn.get(Number(el.dataset.sn))?.isBlocked);
+    densityCurve.update();
     if ((prev.overlayEnabled !== false) !== overlayOn()) applyOverlayMode();
   });
 
@@ -349,6 +357,7 @@ async function loadDanmaku() {
     blocked: danmakuData.filter(d => d.isBlocked).length,
     ms: Math.round(performance.now() - started),
   });
+  densityCurve.update();
 
   if (!previous.size) {
     resync();
@@ -412,6 +421,7 @@ function changeEpisode(sn) {
   nextIndex = 0;
   lastTenths = 0;
   lastBucket = null;
+  if (densityCurve) densityCurve.update();
   if (bookmarks) bookmarks.episodeChanged();
 }
 

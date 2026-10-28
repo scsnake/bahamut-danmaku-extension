@@ -8,6 +8,7 @@ A powerful Chrome Extension designed to overhaul the native danmaku (bullet comm
 - **Bypass the 3000-Item Limit**: The native player caps comments at 3000, causing early comments on popular videos to be completely hidden. This extension pre-fetches the entire JSON response and streams *all* comments cleanly without limits.
 - **Custom Hardware-Accelerated Engine**: Injects our own overlay inside the native `.vjs-danmu` area and hides the native comments (`.danmu-warp`), so both always cover the same area.
 - **Matches the Official Player**: Ports the official renderer — font sizes, rolling speed and duration, top/bottom comments, pixel-based placement — and follows the official settings (danmaku on/off, opacity, size, rolling/top/bottom toggles, TW/HK sources) live.
+- **Danmaku Density Curve**: A faint curve just above the progress bar shows how busy each part of the episode is, so you can spot the hot scenes before you reach them. It counts only comments that pass your filters, follows in-place episode changes, hides during ads, and can be turned off in the popup.
 
 ### 2. Multi-Layer Hybrid Filtering System
 To maintain perfect video performance while evaluating thousands of comments, the filtering engine works in two passes:
@@ -52,6 +53,7 @@ A clean, lightweight popup UI (`popup.html`) allowing you to:
 - **`manifest.json`**: MV3 architecture utilizing `service_worker` for background processing.
 - **`background.js`**: Maintains the persistent session with the Prompt API (`LanguageModel`) for Pass-2 filtering, and hosts bookmark storage.
 - **`content.js`**: Fetches the danmaku list, hooks into the video player, runs the render loop synchronized to `videoElement.currentTime`, reads the official settings (`ANIME_danmu*` in `localStorage`) and keyword list, and handles click events.
+- **`density.js`**: Draws the density curve as an SVG inside the player's `.vjs-progress-holder`.
 - **`content.css`**: Hides the native comments, styles our comments like the official ones, and provides the light/dark mode UI for the contextual modal.
 - **`ROADMAP.md`**: Phases, measured facts about the official player and API, and the planned danmaku search feature.
 - **`bookmarks/`**: Scene bookmarks. `common.js` holds helpers shared by every context; `store.js` (imported by `background.js`) is the single writer to `chrome.storage.local`, which serializes updates from the page and the manager; `content-bookmarks.js`/`.css` is the in-player toolbar, panel and quick editor; `manager.html`/`.js`/`.css` is the full-page manager.
