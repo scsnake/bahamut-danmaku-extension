@@ -5,7 +5,8 @@
 // the player's `.vjs-progress-holder`, so it spans exactly the timeline and
 // fades out with the control bar. content.js calls initDensityCurve() once
 // the player exists and update() whenever the list, the filters or the
-// duration change.
+// duration change. getMarks() (optional) gives the OP's { start, end } in
+// seconds, drawn as two ticks (opskip.js).
 
 const DENSITY_BINS = 240;
 const DENSITY_HEIGHT = 24;  // viewBox units; the CSS sets the pixel height
@@ -13,7 +14,7 @@ const DENSITY_HEIGHT = 24;  // viewBox units; the CSS sets the pixel height
 const DENSITY_MIN_SEC = 60;
 const DENSITY_KERNEL = [1, 4, 6, 4, 1];
 
-function initDensityCurve({ video, player, getDanmaku, isEnabled }) {
+function initDensityCurve({ video, player, getDanmaku, isEnabled, getMarks = () => null }) {
   const SVG_NS = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(SVG_NS, 'svg');
   svg.classList.add('dmk-density');
@@ -24,7 +25,9 @@ function initDensityCurve({ video, player, getDanmaku, isEnabled }) {
   area.classList.add('dmk-density-area');
   const line = document.createElementNS(SVG_NS, 'path');
   line.classList.add('dmk-density-line');
-  svg.append(area, line);
+  const marks = document.createElementNS(SVG_NS, 'path');
+  marks.classList.add('dmk-density-mark');
+  svg.append(area, line, marks);
 
   let pending = 0;
 
@@ -59,6 +62,11 @@ function initDensityCurve({ video, player, getDanmaku, isEnabled }) {
     const top = `M0,${ys[0]} L${points.join(' L')} L${DENSITY_BINS},${ys[ys.length - 1]}`;
     line.setAttribute('d', top);
     area.setAttribute('d', `${top} L${DENSITY_BINS},${DENSITY_HEIGHT} L0,${DENSITY_HEIGHT} Z`);
+    const range = getMarks();
+    marks.setAttribute('d', range
+      ? [range.start, range.end]
+        .map(sec => `M${round(DENSITY_BINS * sec / duration)},0 V${DENSITY_HEIGHT}`).join(' ')
+      : '');
     if (svg.parentNode !== holder) holder.appendChild(svg);
   }
 

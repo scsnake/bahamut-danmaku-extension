@@ -43,6 +43,7 @@ let currentVideoSn = null;
 let bookmarks = null;
 let densityCurve = null;
 let ageGate = null;
+let opSkip = null;
 let videoElement = null;
 let playerElement = null;
 let overlayElement = null;
@@ -248,11 +249,20 @@ async function init() {
   onResize();
   addPlayerToggle();
   applyOverlayMode();
+  opSkip = initOpSkip({
+    video: videoElement,
+    player: playerElement,
+    getDanmaku: () => danmakuData,
+    getVideoSn: () => currentVideoSn,
+    isEnabled: () => settings.densityEnabled !== false,
+    log: dlog,
+  });
   densityCurve = initDensityCurve({
     video: videoElement,
     player: playerElement,
     getDanmaku: () => danmakuData,
     isEnabled: () => settings.densityEnabled !== false,
+    getMarks: opSkip.range,
   });
   ageGate = watchAgeGate({
     player: playerElement,
@@ -276,6 +286,7 @@ async function init() {
     updatePlayerToggle();
     processDanmaku();
     removeOnScreen(el => bySn.get(Number(el.dataset.sn))?.isBlocked);
+    opSkip.update();
     densityCurve.update();
     ageGate.check();
     if ((prev.overlayEnabled !== false) !== overlayOn()) applyOverlayMode();
@@ -389,6 +400,7 @@ async function loadDanmaku(reason) {
     blocked: danmakuData.filter(d => d.isBlocked).length,
     ms: Math.round(performance.now() - started),
   });
+  opSkip.update();
   densityCurve.update();
 
   if (!previous.size) {
@@ -484,6 +496,7 @@ function changeEpisode(sn) {
   nextIndex = 0;
   lastTenths = 0;
   lastBucket = null;
+  if (opSkip) opSkip.update();
   if (densityCurve) densityCurve.update();
   if (bookmarks) bookmarks.episodeChanged();
 }

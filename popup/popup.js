@@ -103,20 +103,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const debugCount = document.getElementById('debugCount');
   const showDebugCount = async () => {
-    const { debugLog = [] } = await chrome.storage.local.get("debugLog");
-    debugCount.textContent = `(${debugLog.length})`;
+    const { debugLog = [], opSkipReview = {} } = await chrome.storage.local.get(["debugLog", "opSkipReview"]);
+    const review = Object.keys(opSkipReview).length;
+    debugCount.textContent = `(${debugLog.length}${review ? `, OP ? ${review}` : ''})`;
   };
   showDebugCount();
   document.getElementById('exportLog').addEventListener('click', async () => {
-    const { debugLog = [] } = await chrome.storage.local.get("debugLog");
-    const blob = new Blob([JSON.stringify(debugLog, null, 1)], { type: 'application/json' });
+    // opSkipReview: episodes where opskip.js could not place the OP.
+    const { debugLog = [], opSkipReview = {} } = await chrome.storage.local.get(["debugLog", "opSkipReview"]);
+    const blob = new Blob([JSON.stringify({ debugLog, opSkipReview }, null, 1)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = `danmaku-debug-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
     a.click();
   });
   document.getElementById('clearLog').addEventListener('click', async () => {
-    await chrome.storage.local.set({ debugLog: [] });
+    await chrome.storage.local.set({ debugLog: [], opSkipReview: {} });
     showDebugCount();
   });
 
