@@ -1,11 +1,11 @@
 /* content.css */
 
-/* Hide the official danmaku container */
-.vjs-danmu, 
-.danmu-warp {
+/* Hide the official danmaku, but only once our overlay is in place (the
+   `dmk-active` class), so a failed start leaves the official one visible.
+   Keep its parent `.vjs-danmu`: our overlay lives inside it, so both cover
+   the same area. */
+.dmk-active .vjs-danmu > .danmu-warp {
   display: none !important;
-  opacity: 0 !important;
-  visibility: hidden !important;
 }
 
 /* Our custom overlay */
@@ -16,21 +16,30 @@
   width: 100%;
   height: 100%;
   pointer-events: none; /* Let clicks pass through to the video player */
-  z-index: 9999;
   overflow: hidden;
 }
 
-/* Base style for individual danmaku items */
+/* Base style for individual danmaku items, matched to the official `.danmu` */
 .custom-danmaku-item {
   position: absolute;
+  left: 0;
   white-space: pre; /* Keep spaces, don't wrap */
-  font-family: "Microsoft JhengHei", "Heiti TC", sans-serif;
-  font-weight: bold;
-  text-shadow: 1px 1px 2px #000, -1px -1px 2px #000, 1px -1px 2px #000, -1px 1px 2px #000;
+  line-height: 1.25;
+  font-family: "Microsoft JhengHei", Heiti, Simhei, Simsun, wqy-zenhei, "MS Mincho", Meiryo, "Microsoft Yahei", monospace;
+  font-weight: 700;
+  text-shadow: rgba(0, 0, 0, 0.5) -1px 0 1px, rgba(0, 0, 0, 0.5) 0 1px 1px,
+    rgba(0, 0, 0, 0.5) 1px 0 1px, rgba(0, 0, 0, 0.5) 0 -1px 1px;
   will-change: transform;
   pointer-events: auto;
   cursor: pointer;
   z-index: 10;
+}
+
+/* Top / bottom comments stay centered. */
+.custom-danmaku-item.danmaku-mode-top,
+.custom-danmaku-item.danmaku-mode-bottom {
+  left: 50%;
+  translate: -50% 0;
 }
 
 .custom-danmaku-item:hover {

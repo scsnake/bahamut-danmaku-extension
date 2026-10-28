@@ -8,6 +8,7 @@ chrome.runtime.onInstalled.addListener(async () => {
   if (!settings) {
     await chrome.storage.local.set({
       settings: {
+        overlayEnabled: true,
         aiFilterEnabled: true,
         aiStrictness: 'moderate', // 'low', 'moderate', 'high'
         keywordBlocklist: [],
@@ -16,6 +17,24 @@ chrome.runtime.onInstalled.addListener(async () => {
     });
   }
 });
+
+// Debug log shared by all tabs (DEBUG_LOG messages) and this worker. Kept in
+// chrome.storage.local, newest DEBUG_LOG_MAX entries; exported from the popup.
+const DEBUG_LOG_MAX = 5000;
+let debugWrite = Promise.resolve();
+
+function appendDebugLog(entries) {
+  debugWrite = debugWrite.then(async () => {
+    const { debugLog = [] } = await chrome.storage.local.get("debugLog");
+    debugLog.push(...entries);
+    await chrome.storage.local.set({ debugLog: debugLog.slice(-DEBUG_LOG_MAX) });
+  }).catch(err => console.warn("[Danmaku Enhancer] Debug log write failed:", err));
+}
+
+function dlog(event, data) {
+  console.log("[Danmaku Enhancer]", event, data === undefined ? '' : data);
+  appendDebugLog([{ t: new Date().toISOString(), src: 'background', event, data }]);
+}
 
 const SYSTEM_PROMPT =
   "You are a content moderator for an anime streaming platform. " +
@@ -34,40 +53,44 @@ async function getAiSession() {
   if (aiSessionPromise) return await aiSessionPromise;
 
   aiSessionPromise = (async () => {
-    const candidates = [
-      self.LanguageModel,
-      self.ai && self.ai.languageModel,
-      chrome.languageModel,
-      self.aiOriginTrial && self.aiOriginTrial.languageModel
-    ].filter(Boolean);
+    const named = [
+      ['LanguageModel', self.LanguageModel],
+      ['ai.languageModel', self.ai && self.ai.languageModel],
+      ['chrome.languageModel', chrome.languageModel],
+      ['aiOriginTrial.languageModel', self.aiOriginTrial && self.aiOriginTrial.languageModel]
+    ];
+    const candidates = named.filter(([, api]) => api);
+    dlog('aiApis', { defined: candidates.map(([name]) => name) });
 
-    if (candidates.length === 0) {
-      console.warn("[Danmaku Enhancer] AI Prompt API is not available.");
-      return null;
-    }
+    if (candidates.length === 0) return null;
 
-    for (const modelApi of candidates) {
+    for (const [name, modelApi] of candidates) {
       try {
         let available = true;
+        let status = null;
         if (typeof modelApi.availability === 'function') {
-          const status = await modelApi.availability();
+          status = await modelApi.availability();
           available = status !== 'no' && status !== 'unavailable';
         } else if (typeof modelApi.capabilities === 'function') {
           const caps = await modelApi.capabilities();
+          status = caps.available;
           available = caps.available !== 'no';
         }
+        dlog('aiAvailability', { api: name, status });
         if (!available) continue;
 
         // Send both `initialPrompts` (current API) and `systemPrompt` (legacy);
         // implementations ignore what they don't recognize.
+        const started = Date.now();
         const session = await modelApi.create({
           initialPrompts: [{ role: 'system', content: SYSTEM_PROMPT }],
           systemPrompt: SYSTEM_PROMPT
         });
+        dlog('aiSession', { api: name, createMs: Date.now() - started, clone: typeof session.clone === 'function' });
         aiSession = session;
         return session;
       } catch (err) {
-        console.warn("[Danmaku Enhancer] AI session creation failed on candidate:", err);
+        dlog('aiSessionFailed', { api: name, message: String(err && err.message || err) });
       }
     }
     return null;
@@ -101,7 +124,7 @@ async function evaluateCommentWithAi(text) {
     const result = await session.prompt(`Comment: "${text}"`);
     return !String(result).toUpperCase().includes('BLOCK');
   } catch (err) {
-    console.error("[Danmaku Enhancer] AI Evaluation failed:", err);
+    dlog('aiPromptFailed', { message: String(err && err.message || err) });
     return true;
   } finally {
     if (cloned && typeof session.destroy === 'function') {
@@ -111,20 +134,9 @@ async function evaluateCommentWithAi(text) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === 'FETCH_DANMAKU') {
-    (async () => {
-      try {
-        const url = `https://api.gamer.com.tw/anime/v1/danmu.php?videoSn=${encodeURIComponent(message.videoSn)}&geo=TW%2CHK`;
-        // credentials: 'include' so the request carries the user's gamer.com.tw
-        // cookies (needed for personalized filter state on the server side).
-        const res = await fetch(url, { credentials: 'include' });
-        const data = await res.json();
-        sendResponse({ success: true, data });
-      } catch (err) {
-        sendResponse({ success: false, error: err.message });
-      }
-    })();
-    return true;
+  if (message.type === 'DEBUG_LOG') {
+    appendDebugLog(message.entries || []);
+    return false;
   }
 
   if (message.type === 'AI_FILTER_BATCH') {

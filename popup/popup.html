@@ -11,6 +11,14 @@
     
     <div class="setting-group">
       <label>
+        <input type="checkbox" id="overlayToggle">
+        Use enhanced danmaku layer
+      </label>
+      <p class="desc">Off shows the official danmaku instead. The official on/off, opacity, size and type settings apply to both.</p>
+    </div>
+
+    <div class="setting-group">
+      <label>
         <input type="checkbox" id="aiFilterToggle">
         Enable Gemini Nano AI Filter
       </label>
@@ -39,6 +47,14 @@
         <button id="addUser">Add</button>
       </div>
       <ul id="userList" class="block-list"></ul>
+    </div>
+
+    <div class="setting-group">
+      <h3>Debug Log <span id="debugCount" class="count"></span></h3>
+      <div class="input-group">
+        <button id="exportLog">Export</button>
+        <button id="clearLog">Clear</button>
+      </div>
     </div>
   </div>
   <script src="popup.js"></script>

@@ -1,30 +1,151 @@
 // content.js
 
-let videoElement = null;
-let overlayElement = null;
-let danmakuData = [];
-let settings = {};
-let webpageBlocklist = [];
+const LOG = '[Danmaku Enhancer]';
+const DANMU_API = 'https://api.gamer.com.tw/anime/v1/danmu.php';
 
-// All in-flight rolling-danmaku animations. Paused/resumed with the video,
+// Renderer constants, matched to the official danmaku manager in
+// anime_player.js (see ROADMAP.md).
+const TIME_UNIT_MS = 200;          // official fires comments in 200 ms buckets
+const STATIC_DURATION_MS = 5000;   // top / bottom comments
+const ROLLING_UNIT_SEC = 12;       // speed = (screen width + 2 * text width) / 12 s
+const FONT_SIZES = { 0: 16, 1: 24, 2: 28 };
+const MODES = { 0: 'rolling', 1: 'top', 2: 'bottom' };
+// Comments still waiting for the AI this long after their time are dropped.
+const GRACE_TENTHS = 30;
+const AI_LOOKAHEAD_TENTHS = 20;
+const SETTINGS_POLL_MS = 1000;
+const REFETCH_DEBOUNCE_MS = 300;
+const DEBUG_FLUSH_MS = 2000;
+const STATS_INTERVAL_MS = 10000;
+
+let currentVideoSn = null;
+let videoElement = null;
+let playerElement = null;
+let overlayElement = null;
+let danmakuData = [];      // sorted by time; `time` is in tenths of a second
+let bySn = new Map();
+let settings = {};
+let officialKeywords = [];
+let display = readOfficialDisplay();
+
+let nextIndex = 0;         // first item in danmakuData not yet due
+let lastTenths = 0;        // items up to this time were already taken
+let dueQueue = [];         // due items still waiting (AI) to be rendered
+let lastBucket = null;
+let rafId = 0;
+let adActive = false;
+let areaWidth = 0;
+let areaHeight = 0;
+// performance.now() of our own danmu.php requests, to tell them apart from
+// the official player's.
+const ownFetchStarts = [];
+
+// All in-flight danmaku animations. Paused/resumed with the video,
 // cancelled on seek.
 const activeAnimations = new Set();
 
-const ROW_COUNT = 15;
-const ROW_HEIGHT = 34;
-const DANMAKU_DURATION_MS = 6000;
-// rowFreeAt[i] = video time (seconds) at which row i can accept a new comment.
-const rowFreeAt = new Array(ROW_COUNT).fill(0);
+// Debug log. Entries go to background.js, which keeps the newest ones in
+// chrome.storage.local; the popup exports them as a JSON file.
+const debugBuffer = [];
+const stats = newStats();
+
+function newStats() {
+  return { rendered: 0, droppedLate: 0, blocked: 0, aiRequested: 0, aiBlocked: 0, aiFailed: 0 };
+}
+
+function dlog(event, data) {
+  console.log(LOG, event, data === undefined ? '' : data);
+  debugBuffer.push({
+    t: new Date().toISOString(),
+    src: 'content',
+    sn: currentVideoSn,
+    vt: videoElement ? Math.round(videoElement.currentTime * 10) / 10 : null,
+    event,
+    data,
+  });
+}
+
+function flushDebugLog() {
+  if (!debugBuffer.length) return;
+  const entries = debugBuffer.splice(0);
+  chrome.runtime.sendMessage({ type: 'DEBUG_LOG', entries }).catch(() => {});
+}
+
+function logStats() {
+  if (!videoElement || videoElement.paused) return;
+  dlog('stats', {
+    ...stats,
+    onScreen: activeAnimations.size,
+    waiting: dueQueue.length,
+    nextIndex,
+    total: danmakuData.length,
+  });
+  Object.assign(stats, newStats());
+}
+
+function overlayOn() {
+  return settings.overlayEnabled !== false;
+}
+
+// Pixel-based vertical placement per mode, like the official allocator:
+// take the first free position, else the one with the least overlap.
+class LaneAllocator {
+  constructor() {
+    this.reset(0);
+  }
+
+  reset(height) {
+    this.height = Math.max(0, Math.floor(height));
+    // busyUntil[y] = video time (ms) until pixel line y is taken.
+    this.busyUntil = new Float64Array(this.height);
+  }
+
+  allocate(h, startMs, endMs) {
+    h = Math.ceil(h);
+    let best = 0;
+    let bestScore = Infinity;
+    let y = 0;
+    while (y + h <= this.height) {
+      let score = 0;
+      let lastBusy = -1;
+      for (let i = y; i < y + h; i++) {
+        if (this.busyUntil[i] > startMs) {
+          score += this.busyUntil[i] - startMs;
+          lastBusy = i;
+        }
+      }
+      if (lastBusy < 0) {
+        best = y;
+        bestScore = 0;
+        break;
+      }
+      if (score < bestScore) {
+        bestScore = score;
+        best = y;
+      }
+      y = lastBusy + 1;
+    }
+    for (let i = best; i < Math.min(best + h, this.height); i++) {
+      this.busyUntil[i] = Math.max(this.busyUntil[i], endMs);
+    }
+    return best;
+  }
+}
+
+const lanes = {
+  rolling: new LaneAllocator(),
+  top: new LaneAllocator(),
+  bottom: new LaneAllocator(),
+};
 
 async function init() {
-  console.log("[Danmaku Enhancer] Initializing...");
-
   const urlParams = new URLSearchParams(window.location.search);
   const videoSn = urlParams.get('sn');
-  if (!videoSn) {
-    console.log("[Danmaku Enhancer] No videoSn found in URL.");
-    return;
-  }
+  if (!videoSn) return;
+  currentVideoSn = videoSn;
+  setInterval(flushDebugLog, DEBUG_FLUSH_MS);
+  setInterval(logStats, STATS_INTERVAL_MS);
+  dlog('init', { url: location.pathname + location.search, version: chrome.runtime.getManifest().version });
 
   const storage = await chrome.storage.local.get("settings");
   settings = storage.settings || {
@@ -34,19 +155,42 @@ async function init() {
     userBlocklist: []
   };
 
-  extractWebpageBlocklist();
-
+  let danmuLayer;
   try {
     videoElement = await waitForElement('#ani_video_html5_api');
+    // The official layer. Our overlay goes inside it so both always cover
+    // the same area (normal, theater and fullscreen).
+    danmuLayer = await waitForElement('#ani_video .vjs-danmu');
   } catch (err) {
-    console.error("[Danmaku Enhancer] Video element not found:", err);
+    dlog('error', { where: 'init', message: err.message });
     return;
   }
-  const videoContainer = await waitForElement('#ani_video');
+  const videoContainer = document.querySelector('#ani_video');
+  playerElement = videoContainer;
 
   overlayElement = document.createElement('div');
   overlayElement.id = 'custom_danmu_overlay';
-  videoContainer.appendChild(overlayElement);
+  danmuLayer.appendChild(overlayElement);
+  new ResizeObserver(onResize).observe(overlayElement);
+  onResize();
+  applyOverlayMode();
+  dlog('player', {
+    area: [areaWidth, areaHeight],
+    video: [videoElement.clientWidth, videoElement.clientHeight],
+    screenWidth: window.screen.availWidth,
+    display,
+    settings: { overlayEnabled: overlayOn(), aiFilterEnabled: settings.aiFilterEnabled },
+  });
+
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'local' || !changes.settings) return;
+    const prev = settings;
+    settings = changes.settings.newValue || {};
+    dlog('settings', { overlayEnabled: overlayOn(), aiFilterEnabled: settings.aiFilterEnabled });
+    processDanmaku();
+    removeOnScreen(el => bySn.get(Number(el.dataset.sn))?.isBlocked);
+    if ((prev.overlayEnabled !== false) !== overlayOn()) applyOverlayMode();
+  });
 
   initBookmarks({
     video: videoElement,
@@ -55,59 +199,197 @@ async function init() {
     getDanmaku: () => danmakuData,
   });
 
-  console.log(`[Danmaku Enhancer] Fetching danmaku for videoSn: ${videoSn}`);
-  chrome.runtime.sendMessage({ type: 'FETCH_DANMAKU', videoSn }, (response) => {
-    if (response && response.success && response.data) {
-      // API response shape may be {data: {danmu: [...]}} or {data: [...]}
-      const payload = response.data.data;
-      if (Array.isArray(payload)) {
-        danmakuData = payload;
-      } else if (payload && Array.isArray(payload.danmu)) {
-        danmakuData = payload.danmu;
-      } else {
-        danmakuData = [];
-      }
-      console.log(`[Danmaku Enhancer] Loaded ${danmakuData.length} danmaku items. (Bypassed 3000 limit)`);
-      processDanmaku();
-    } else {
-      console.error("[Danmaku Enhancer] Failed to fetch danmaku", response?.error);
+  watchOfficialKeywords();
+  watchOfficialRefetch();
+  setInterval(pollOfficialDisplay, SETTINGS_POLL_MS);
+
+  videoElement.addEventListener('seeking', cleanAll);
+  videoElement.addEventListener('seeked', resync);
+  videoElement.addEventListener('loadedmetadata', resync); // ad -> episode
+  videoElement.addEventListener('pause', pause);
+  videoElement.addEventListener('waiting', pause);
+  videoElement.addEventListener('play', resume);
+  videoElement.addEventListener('playing', resume);
+  videoElement.addEventListener('ratechange', () => {
+    dlog('ratechange', { rate: videoElement.playbackRate });
+    activeAnimations.forEach(a => { a.playbackRate = videoElement.playbackRate || 1; });
+  });
+  videoElement.addEventListener('seeked', () => dlog('seeked'));
+  videoElement.addEventListener('loadedmetadata', () => dlog('loadedmetadata', { duration: videoElement.duration }));
+  window.addEventListener('pagehide', flushDebugLog);
+
+  await loadDanmaku();
+}
+
+// Our layer or the official one (popup switch). The official player keeps
+// running underneath; the `dmk-active` class only hides its comments.
+function applyOverlayMode() {
+  const on = overlayOn();
+  playerElement.classList.toggle('dmk-active', on);
+  dlog('overlayMode', { on });
+  if (on) resync();
+  else cleanAll();
+}
+
+// Loads (or reloads) the list. On a reload, keeps what is on screen and the
+// AI results, drops comments the server no longer returns (for example from
+// a user just muted), and continues from the current position.
+async function loadDanmaku() {
+  let list;
+  const started = performance.now();
+  try {
+    list = await fetchDanmaku(currentVideoSn, display.geos);
+  } catch (err) {
+    dlog('error', { where: 'fetchDanmaku', message: err.message });
+    return;
+  }
+  const previous = bySn;
+  list.forEach(d => {
+    const prev = previous.get(d.sn);
+    if (prev) {
+      d.aiEvaluated = prev.aiEvaluated === true;
+      d.aiBlocked = prev.aiBlocked;
     }
   });
+  danmakuData = list;
+  bySn = new Map(list.map(d => [d.sn, d]));
+  processDanmaku();
+  dlog('loaded', {
+    count: danmakuData.length,
+    reload: previous.size > 0,
+    removed: previous.size ? [...previous.keys()].filter(sn => !bySn.has(sn)).length : 0,
+    blocked: danmakuData.filter(d => d.isBlocked).length,
+    ms: Math.round(performance.now() - started),
+  });
 
-  videoElement.addEventListener('timeupdate', onTimeUpdate);
-  videoElement.addEventListener('seeked', onSeeked);
-  videoElement.addEventListener('pause', pauseAllAnimations);
-  videoElement.addEventListener('play', resumeAllAnimations);
-  videoElement.addEventListener('waiting', pauseAllAnimations);
-  videoElement.addEventListener('playing', resumeAllAnimations);
+  if (!previous.size) {
+    resync();
+    return;
+  }
+  nextIndex = indexAfter(danmakuData, lastTenths);
+  dueQueue = dueQueue.map(d => bySn.get(d.sn)).filter(Boolean);
+  removeOnScreen(el => {
+    const d = bySn.get(Number(el.dataset.sn));
+    return !d || d.isBlocked;
+  });
 }
 
-function extractWebpageBlocklist() {
-  try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      // TODO(verify): confirm the exact Bahamut localStorage key name for
-      // user-configured filter words. Broad "includes('filter')" match may
-      // pick up unrelated third-party keys.
-      if (key && key.toLowerCase().includes('filter')) {
-        const val = localStorage.getItem(key);
-        try {
-          const parsed = JSON.parse(val);
-          if (Array.isArray(parsed)) {
-            webpageBlocklist = [...new Set([...webpageBlocklist, ...parsed])];
-          }
-        } catch (e) {
-          if (typeof val === 'string' && val.includes(',')) {
-            webpageBlocklist = [...new Set([...webpageBlocklist, ...val.split(',')])];
-          }
-        }
+async function fetchDanmaku(videoSn, geos) {
+  // Same request as the official player. An empty geo list means the user
+  // turned off every danmaku source. The server applies the user's official
+  // keyword filters and mute list, so the request carries the cookies.
+  if (!geos.length) return [];
+  const url = `${DANMU_API}?videoSn=${encodeURIComponent(videoSn)}&geo=${encodeURIComponent(geos.join(','))}`;
+  ownFetchStarts.push(performance.now());
+  if (ownFetchStarts.length > 10) ownFetchStarts.shift();
+  const res = await fetch(url, { credentials: 'include' });
+  const json = await res.json();
+  const list = (json && json.data && json.data.danmu) || [];
+  list.sort((a, b) => a.time - b.time || a.sn - b.sn);
+  return list;
+}
+
+// The official player fetches danmu.php again after a mute, a keyword
+// change, a source change or a click on its refresh button. Follow it.
+function watchOfficialRefetch() {
+  let timer = 0;
+  new PerformanceObserver(entries => {
+    for (const entry of entries.getEntries()) {
+      if (!entry.name.includes('/anime/v1/danmu.php')) continue;
+      const own = ownFetchStarts.findIndex(t => Math.abs(t - entry.startTime) < 50);
+      if (own >= 0) {
+        ownFetchStarts.splice(own, 1);
+        continue;
       }
+      dlog('officialRefetch', { ownPending: ownFetchStarts.length });
+      clearTimeout(timer);
+      timer = setTimeout(loadDanmaku, REFETCH_DEBOUNCE_MS);
     }
-    console.log("[Danmaku Enhancer] Extracted webpage blocklist:", webpageBlocklist);
-  } catch (err) {
-    console.error("[Danmaku Enhancer] Could not extract webpage blocklist", err);
+  }).observe({ type: 'resource' });
+}
+
+// --- Official settings -----------------------------------------------------
+
+// Reads the settings the official player stores in localStorage.
+function readOfficialDisplay() {
+  const get = (key) => {
+    try { return localStorage.getItem(key); } catch (_) { return null; }
+  };
+  const opacity = (get('ANIME_danmu_opacity') || '0.7,1,1,1').split(',');
+  let geos = ['TW', 'HK'];
+  try {
+    const parsed = JSON.parse(get('ANIME_DANMU_GEOS'));
+    if (Array.isArray(parsed)) geos = parsed;
+  } catch (_) {}
+  const sizeRate = parseFloat(get('ANIME_danmu_size'));
+  return {
+    enabled: get('ANIME_danmu') !== 'off',
+    opacity: clamp(parseFloat(opacity[0]), 0, 1, 0.7),
+    modeAllow: {
+      rolling: opacity[1] !== '0',
+      top: opacity[2] !== '0',
+      bottom: opacity[3] !== '0',
+    },
+    sizeRate: clamp(sizeRate, 0.5, 1.5, 1),
+    geos,
+  };
+}
+
+function pollOfficialDisplay() {
+  const next = readOfficialDisplay();
+  if (JSON.stringify(next) === JSON.stringify(display)) return;
+  const prev = display;
+  display = next;
+  dlog('officialDisplay', display);
+
+  if (display.geos.join() !== prev.geos.join()) {
+    loadDanmaku();
+    return;
+  }
+  if (!display.enabled) {
+    cleanAll();
+    return;
+  }
+  if (display.opacity !== prev.opacity) {
+    overlayElement.querySelectorAll('.custom-danmaku-item').forEach(el => {
+      el.style.opacity = display.opacity;
+    });
+  }
+  // Remove on-screen comments of a mode that was just turned off.
+  for (const mode of Object.keys(display.modeAllow)) {
+    if (!display.modeAllow[mode]) {
+      removeOnScreen(el => el.dataset.mode === mode);
+    }
   }
 }
+
+// The official keyword list is server-rendered into the settings panel and
+// edited in place, so read it from the DOM and follow its changes.
+async function watchOfficialKeywords() {
+  let body;
+  try {
+    body = await waitForElement('.ani-keyword-body');
+  } catch (_) {
+    return; // Not logged in, or the panel is missing.
+  }
+  const read = () => {
+    officialKeywords = [...body.querySelectorAll('.ani-keyword-label > span')]
+      .map(s => s.textContent.trim())
+      .filter(Boolean);
+    dlog('officialKeywords', { count: officialKeywords.length });
+  };
+  read();
+  new MutationObserver(() => {
+    read();
+    processDanmaku();
+    removeOnScreen(el => {
+      const d = bySn.get(Number(el.dataset.sn));
+      return d && d.isBlocked;
+    });
+  }).observe(body, { childList: true, subtree: true });
+}
+
+// --- Filtering ---------------------------------------------------------------
 
 function passesBasicFilter(danmaku) {
   const text = danmaku.text || '';
@@ -115,7 +397,7 @@ function passesBasicFilter(danmaku) {
 
   if (settings.userBlocklist && settings.userBlocklist.includes(userid)) return false;
 
-  const allKeywords = [...(settings.keywordBlocklist || []), ...webpageBlocklist];
+  const allKeywords = [...(settings.keywordBlocklist || []), ...officialKeywords];
   for (const kw of allKeywords) {
     if (kw && text.includes(kw)) return false;
   }
@@ -123,139 +405,214 @@ function passesBasicFilter(danmaku) {
 }
 
 function processDanmaku() {
-  danmakuData.sort((a, b) => a.time - b.time);
   danmakuData.forEach(d => {
     d.isBlocked = !passesBasicFilter(d);
-    d.aiEvaluated = false;
-    d.rendered = false;
+    if (d.aiEvaluated === undefined) d.aiEvaluated = false;
+    if (d.aiBlocked) d.isBlocked = true;
   });
 }
 
-async function onTimeUpdate() {
-  if (!videoElement || !danmakuData.length) return;
+function requestAiEvaluation(nowTenths) {
+  const toEvaluate = [];
+  for (let i = nextIndex; i < danmakuData.length; i++) {
+    const d = danmakuData[i];
+    if (d.time > nowTenths + AI_LOOKAHEAD_TENTHS) break;
+    if (!d.isBlocked && !d.aiEvaluated) toEvaluate.push(d);
+  }
+  for (const d of dueQueue) {
+    if (!d.isBlocked && !d.aiEvaluated) toEvaluate.push(d);
+  }
+  if (!toEvaluate.length) return;
 
-  const currentTime = videoElement.currentTime;
-  const currentTenths = currentTime * 10;
-  const lookaheadTenths = currentTenths + 20; // 2s lookahead for AI batching
-  const graceTenths = 30; // 3s grace before we give up on late items
-
-  // Fire off AI evaluation for imminent items.
-  if (settings.aiFilterEnabled) {
-    const toEvaluate = danmakuData.filter(d =>
-      !d.isBlocked && !d.rendered && !d.aiEvaluated &&
-      d.time <= lookaheadTenths &&
-      d.time >= currentTenths - graceTenths
-    );
-    if (toEvaluate.length > 0) {
-      toEvaluate.forEach(d => { d.aiEvaluated = 'pending'; });
-      const batch = toEvaluate.map(d => ({ sn: d.sn, text: d.text }));
-      chrome.runtime.sendMessage({ type: 'AI_FILTER_BATCH', batch }, (res) => {
-        if (res && res.success) {
-          res.results.forEach(r => {
-            const d = danmakuData.find(x => x.sn === r.sn);
-            if (d && d.aiEvaluated === 'pending') {
-              d.aiEvaluated = true;
-              if (!r.allowed) d.isBlocked = true;
-            }
-          });
-        } else {
-          // AI failed; unblock so items still render.
-          toEvaluate.forEach(d => {
-            if (d.aiEvaluated === 'pending') d.aiEvaluated = true;
-          });
+  toEvaluate.forEach(d => { d.aiEvaluated = 'pending'; });
+  stats.aiRequested += toEvaluate.length;
+  const batch = toEvaluate.map(d => ({ sn: d.sn, text: d.text }));
+  const started = performance.now();
+  chrome.runtime.sendMessage({ type: 'AI_FILTER_BATCH', batch }, (res) => {
+    if (chrome.runtime.lastError || !res || !res.success) {
+      stats.aiFailed += toEvaluate.length;
+      dlog('aiBatchFailed', {
+        size: toEvaluate.length,
+        error: chrome.runtime.lastError?.message || res?.error || 'no response',
+      });
+    } else if (performance.now() - started > 1000) {
+      dlog('aiBatchSlow', { size: toEvaluate.length, ms: Math.round(performance.now() - started) });
+    }
+    if (res && res.success) {
+      const evaluated = new Map(toEvaluate.map(d => [d.sn, d]));
+      res.results.forEach(r => {
+        const d = evaluated.get(r.sn);
+        if (d && d.aiEvaluated === 'pending') {
+          d.aiEvaluated = true;
+          if (!r.allowed) {
+            d.aiBlocked = true;
+            d.isBlocked = true;
+            stats.aiBlocked++;
+          }
         }
       });
+    } else {
+      // AI failed; unblock so items still render.
+      toEvaluate.forEach(d => {
+        if (d.aiEvaluated === 'pending') d.aiEvaluated = true;
+      });
     }
+  });
+}
+
+// --- Playback loop -----------------------------------------------------------
+
+function tick() {
+  rafId = requestAnimationFrame(tick);
+  const nowMs = videoElement.currentTime * 1000;
+  const bucket = Math.floor(nowMs / TIME_UNIT_MS) * TIME_UNIT_MS;
+  if (bucket === lastBucket) return;
+  lastBucket = bucket;
+  try {
+    step(nowMs, bucket);
+  } catch (err) {
+    dlog('error', { where: 'tick', message: err.message, stack: String(err.stack).slice(0, 500) });
   }
+}
 
-  // Render items whose scheduled time has arrived and which have cleared AI.
-  danmakuData.forEach(d => {
-    if (d.isBlocked || d.rendered) return;
-    if (d.time > currentTenths) return;
-    if (d.time < currentTenths - graceTenths) {
-      // Missed the window (probably AI never came back). Drop silently.
-      d.rendered = true;
-      return;
+function step(nowMs, bucket) {
+  // Pre-roll ads play in the same <video>; show nothing until the episode.
+  if (playerElement.classList.contains('vjs-ad-playing')) {
+    if (!adActive) {
+      adActive = true;
+      dlog('adStart');
+      cleanAll();
     }
-    if (settings.aiFilterEnabled && d.aiEvaluated !== true) return;
-    renderDanmaku(d, currentTime);
-    d.rendered = true;
+    return;
+  }
+  if (adActive) {
+    adActive = false;
+    dlog('adEnd');
+    resync();
+    return;
+  }
+  if (!overlayOn() || !display.enabled || !danmakuData.length) return;
+
+  const nowTenths = bucket / 100;
+  if (settings.aiFilterEnabled) requestAiEvaluation(nowTenths);
+
+  while (nextIndex < danmakuData.length && danmakuData[nextIndex].time <= nowTenths) {
+    dueQueue.push(danmakuData[nextIndex]);
+    nextIndex++;
+  }
+  lastTenths = nowTenths;
+
+  dueQueue = dueQueue.filter(d => {
+    if (d.isBlocked) {
+      stats.blocked++;
+      return false;
+    }
+    // Missed the window (probably AI never came back). Drop silently.
+    if (nowTenths - d.time > GRACE_TENTHS) {
+      stats.droppedLate++;
+      return false;
+    }
+    if (settings.aiFilterEnabled && d.aiEvaluated !== true) return true;
+    renderDanmaku(d, nowMs);
+    stats.rendered++;
+    return false;
   });
 }
 
-function onSeeked() {
-  if (!overlayElement) return;
-  overlayElement.innerHTML = '';
-  activeAnimations.forEach(a => { try { a.cancel(); } catch (_) {} });
-  activeAnimations.clear();
-  rowFreeAt.fill(0);
-
-  const currentTenths = videoElement.currentTime * 10;
-  danmakuData.forEach(d => {
-    // Stale in-flight AI results should be ignored; re-evaluate on demand.
-    if (d.aiEvaluated === 'pending') d.aiEvaluated = false;
-    d.rendered = d.time < currentTenths;
-  });
-}
-
-function pauseAllAnimations() {
+function pause() {
+  cancelAnimationFrame(rafId);
+  rafId = 0;
   activeAnimations.forEach(a => { try { a.pause(); } catch (_) {} });
 }
 
-function resumeAllAnimations() {
+function resume() {
+  if (videoElement.paused || videoElement.seeking) return;
   activeAnimations.forEach(a => { try { a.play(); } catch (_) {} });
+  if (!rafId) rafId = requestAnimationFrame(tick);
 }
 
-function findFreeRow(currentVideoTime) {
-  for (let i = 0; i < ROW_COUNT; i++) {
-    if (currentVideoTime >= rowFreeAt[i]) return i;
+function cleanAll() {
+  activeAnimations.forEach(a => { try { a.cancel(); } catch (_) {} });
+  activeAnimations.clear();
+  if (overlayElement) {
+    overlayElement.querySelectorAll('.custom-danmaku-item').forEach(el => el.remove());
   }
-  return -1;
+  Object.values(lanes).forEach(l => l.reset(areaHeight));
+  dueQueue = [];
 }
 
-function renderDanmaku(d, currentVideoTime) {
-  // TODO(verify): treat all comments as rolling for now. Confirm the field
-  // name/values for position type (top/bottom static) in the API response.
-  const rowIndex = findFreeRow(currentVideoTime);
-  if (rowIndex < 0) return; // No free row: drop rather than stack on row 0.
+// Restart from the current position: nothing before it renders again.
+function resync() {
+  cleanAll();
+  const nowTenths = videoElement.currentTime * 10;
+  nextIndex = lowerBound(danmakuData, nowTenths);
+  lastTenths = nowTenths - 0.001;
+  lastBucket = null;
+  danmakuData.forEach(d => {
+    // Stale in-flight AI results should be ignored; re-evaluate on demand.
+    if (d.aiEvaluated === 'pending') d.aiEvaluated = false;
+  });
+  resume();
+}
+
+function onResize() {
+  if (!overlayElement) return;
+  areaWidth = overlayElement.clientWidth;
+  areaHeight = overlayElement.clientHeight;
+  Object.values(lanes).forEach(l => {
+    if (l.height !== Math.floor(areaHeight)) l.reset(areaHeight);
+  });
+}
+
+// --- Rendering ---------------------------------------------------------------
+
+function renderDanmaku(d, nowMs) {
+  const mode = MODES[d.position] || 'rolling';
+  if (!display.modeAllow[mode] || display.opacity === 0) return;
+  if (document.visibilityState !== 'visible') return;
 
   const el = document.createElement('div');
-  el.className = 'custom-danmaku-item';
+  el.className = `custom-danmaku-item danmaku-mode-${mode}`;
   el.textContent = d.text; // textContent, never innerHTML — prevents XSS.
-
-  const fontSize = d.size === 0 ? 18 : (d.size === 1 ? 24 : 32);
-  
-  // Convert integer color to hex if needed
-  let colorStr = '#ffffff';
-  if (d.color !== undefined) {
-    if (typeof d.color === 'number') {
-      colorStr = '#' + d.color.toString(16).padStart(6, '0');
-    } else {
-      colorStr = d.color;
-    }
-  }
-  el.style.color = colorStr;
-  el.style.fontSize = `${fontSize}px`;
-  el.style.top = `${rowIndex * ROW_HEIGHT}px`;
-  el.style.left = '100%';
-
+  el.dataset.mode = mode;
+  el.dataset.sn = d.sn;
+  el.style.color = typeof d.color === 'number'
+    ? '#' + d.color.toString(16).padStart(6, '0')
+    : (d.color || '#ffffff');
+  el.style.fontSize = `${Math.floor((FONT_SIZES[d.size] || 24) * display.sizeRate)}px`;
+  el.style.opacity = display.opacity;
+  el.style.visibility = 'hidden';
   overlayElement.appendChild(el);
 
-  // Measure now that the element is in the DOM; use it to compute a precise
-  // row lock (row is free once trailing edge clears the right side).
-  const textWidth = el.offsetWidth;
-  const containerWidth = overlayElement.offsetWidth || window.innerWidth;
-  const durationSec = DANMAKU_DURATION_MS / 1000;
-  const lockSec = durationSec * textWidth / (containerWidth + textWidth) + 0.2;
-  rowFreeAt[rowIndex] = currentVideoTime + lockSec;
+  // Measure in the DOM, then place and animate like the official player.
+  // Durations and locks are in video time (playback rate 1); the animation
+  // playbackRate follows the video, also when the rate changes later.
+  const width = el.offsetWidth;
+  const height = el.offsetHeight;
+  let lockMs;
+  let durationMs;
+  let keyframes;
+  if (mode === 'rolling') {
+    const speed = (window.screen.availWidth + width * 2) / ROLLING_UNIT_SEC / 1000; // px per ms
+    lockMs = width / speed;
+    durationMs = (areaWidth + width * 1.1) / speed;
+    keyframes = [
+      { transform: `translate3d(${areaWidth}px, 0, 0)` },
+      { transform: 'translate3d(-110%, 0, 0)' },
+    ];
+  } else {
+    lockMs = STATIC_DURATION_MS;
+    durationMs = STATIC_DURATION_MS;
+    keyframes = [{ visibility: 'visible' }, { visibility: 'visible' }];
+  }
 
-  const anim = el.animate(
-    [
-      { transform: 'translateX(0)' },
-      { transform: `translateX(calc(-${containerWidth}px - 100%))` }
-    ],
-    { duration: DANMAKU_DURATION_MS, easing: 'linear', fill: 'forwards' }
-  );
+  const pos = lanes[mode].allocate(height, nowMs, nowMs + lockMs);
+  if (mode === 'bottom') el.style.bottom = `${pos}px`;
+  else el.style.top = `${pos}px`;
+  el.style.visibility = '';
+
+  const anim = el.animate(keyframes, { duration: durationMs, easing: 'linear', fill: 'forwards' });
+  anim.playbackRate = videoElement.playbackRate || 1;
   activeAnimations.add(anim);
 
   // If the video was already paused when this comment was scheduled, hold it.
@@ -263,7 +620,7 @@ function renderDanmaku(d, currentVideoTime) {
 
   const cleanup = () => {
     activeAnimations.delete(anim);
-    if (overlayElement.contains(el)) overlayElement.removeChild(el);
+    el.remove();
   };
   anim.onfinish = cleanup;
   anim.oncancel = cleanup;
@@ -273,6 +630,46 @@ function renderDanmaku(d, currentVideoTime) {
     videoElement.pause();
     showDanmakuModal(d);
   });
+}
+
+function removeOnScreen(predicate) {
+  if (!overlayElement) return;
+  overlayElement.querySelectorAll('.custom-danmaku-item').forEach(el => {
+    if (!predicate(el)) return;
+    el.getAnimations().forEach(a => a.cancel());
+    el.remove();
+  });
+}
+
+// --- Helpers -----------------------------------------------------------------
+
+function clamp(value, min, max, fallback) {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, value));
+}
+
+// First index whose time is >= t (danmakuData is sorted by time).
+function lowerBound(list, t) {
+  let lo = 0;
+  let hi = list.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (list[mid].time < t) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
+// First index whose time is > t.
+function indexAfter(list, t) {
+  let lo = 0;
+  let hi = list.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (list[mid].time <= t) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
 }
 
 function waitForElement(selector, timeoutMs = 15000) {
@@ -373,7 +770,7 @@ function showDanmakuModal(d) {
     }
     modal.remove();
     processDanmaku();
-    onSeeked();
+    removeOnScreen(el => bySn.get(Number(el.dataset.sn))?.userid === d.userid);
     videoElement.play();
   };
 
@@ -384,7 +781,7 @@ function showDanmakuModal(d) {
     }
     modal.remove();
     processDanmaku();
-    onSeeked();
+    removeOnScreen(el => bySn.get(Number(el.dataset.sn))?.text === d.text);
     videoElement.play();
   };
 }

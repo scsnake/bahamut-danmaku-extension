@@ -25,6 +25,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.close();
   });
 
+  const overlayToggle = document.getElementById('overlayToggle');
+  overlayToggle.checked = settings.overlayEnabled !== false;
+  overlayToggle.addEventListener('change', async (e) => {
+    settings.overlayEnabled = e.target.checked;
+    await saveSettings();
+  });
+
+  const debugCount = document.getElementById('debugCount');
+  const showDebugCount = async () => {
+    const { debugLog = [] } = await chrome.storage.local.get("debugLog");
+    debugCount.textContent = `(${debugLog.length})`;
+  };
+  showDebugCount();
+  document.getElementById('exportLog').addEventListener('click', async () => {
+    const { debugLog = [] } = await chrome.storage.local.get("debugLog");
+    const blob = new Blob([JSON.stringify(debugLog, null, 1)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `danmaku-debug-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+    a.click();
+  });
+  document.getElementById('clearLog').addEventListener('click', async () => {
+    await chrome.storage.local.set({ debugLog: [] });
+    showDebugCount();
+  });
+
   // Initialize UI
   aiFilterToggle.checked = settings.aiFilterEnabled;
   renderList(keywordList, settings.keywordBlocklist, (val) => removeKeyword(val));
