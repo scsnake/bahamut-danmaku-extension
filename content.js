@@ -48,6 +48,13 @@ async function init() {
   overlayElement.id = 'custom_danmu_overlay';
   videoContainer.appendChild(overlayElement);
 
+  initBookmarks({
+    video: videoElement,
+    container: videoContainer,
+    videoSn,
+    getDanmaku: () => danmakuData,
+  });
+
   console.log(`[Danmaku Enhancer] Fetching danmaku for videoSn: ${videoSn}`);
   chrome.runtime.sendMessage({ type: 'FETCH_DANMAKU', videoSn }, (response) => {
     if (response && response.success && response.data) {

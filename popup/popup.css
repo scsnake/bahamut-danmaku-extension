@@ -97,3 +97,35 @@ button:hover {
   color: #ff1a1a;
   background: transparent;
 }
+
+.count {
+  color: #888;
+  font-weight: normal;
+}
+
+.hint {
+  font-size: 12px;
+  color: #888;
+  margin: 0 0 8px;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+kbd {
+  display: inline-block;
+  padding: 0 5px;
+  border: 1px solid #444;
+  border-radius: 3px;
+  background: #2a2a35;
+  color: #ddd;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 11px;
+}
+
+button.full-width {
+  width: 100%;
+  border-radius: 4px;
+  padding: 8px 12px;
+}

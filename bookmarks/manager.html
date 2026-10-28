@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scene Bookmarks</title>
+  <link rel="stylesheet" href="manager.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2l2.7 5.5 6 .9-4.4 4.2 1 6-5.3-2.8-5.3 2.8 1-6-4.4-4.2 6-.9z"/></svg>
+        <div>
+          <h1>Scene Bookmarks</h1>
+          <p id="summary" class="summary"></p>
+        </div>
+      </div>
+      <input id="search" class="search" type="search" placeholder="Search titles, notes, tags, danmaku…" aria-label="Search bookmarks">
+      <div class="io">
+        <button id="exportBtn" class="btn ghost" type="button">Export</button>
+        <button id="importBtn" class="btn ghost" type="button">Import</button>
+        <input id="importFile" type="file" accept="application/json,.json" hidden>
+      </div>
+    </div>
+  </header>
+
+  <nav class="filters" aria-label="Filters">
+    <div class="segmented" id="kindFilter" role="group" aria-label="Type">
+      <button type="button" data-kind="all" class="active">All</button>
+      <button type="button" data-kind="moment">Moments</button>
+      <button type="button" data-kind="clip">Clips</button>
+    </div>
+    <select id="workFilter" aria-label="Work">
+      <option value="">All works</option>
+    </select>
+    <select id="sortMode" aria-label="Sort">
+      <option value="work">Group by work</option>
+      <option value="newest">Newest first</option>
+      <option value="oldest">Oldest first</option>
+    </select>
+    <div id="tagFilter" class="tag-filter"></div>
+  </nav>
+
+  <main id="content"></main>
+
+  <section id="empty" class="state" hidden>
+    <svg class="state-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2l2.7 5.5 6 .9-4.4 4.2 1 6-5.3-2.8-5.3 2.8 1-6-4.4-4.2 6-.9z"/></svg>
+    <h2>No scenes saved yet</h2>
+    <p>While watching on ani.gamer.com.tw, hover the player and use the toolbar in the top-right corner, or use the keyboard:</p>
+    <ul class="keys">
+      <li><kbd>B</kbd> save the current moment</li>
+      <li><kbd>[</kbd> mark where a clip starts, <kbd>]</kbd> mark where it ends</li>
+      <li><kbd>Esc</kbd> cancel a clip in progress</li>
+    </ul>
+  </section>
+
+  <section id="noResults" class="state" hidden>
+    <h2>No bookmarks match</h2>
+    <p>Try a different search or filter.</p>
+    <button id="clearFilters" class="btn" type="button">Clear filters</button>
+  </section>
+
+  <template id="groupTpl">
+    <section class="group">
+      <header class="group-head">
+        <img class="group-cover" alt="" loading="lazy" referrerpolicy="no-referrer">
+        <div>
+          <h2 class="group-title"></h2>
+          <p class="group-count"></p>
+        </div>
+      </header>
+      <div class="grid"></div>
+    </section>
+  </template>
+
+  <template id="cardTpl">
+    <article class="card">
+      <button class="thumb" type="button">
+        <img alt="" loading="lazy" referrerpolicy="no-referrer">
+        <span class="thumb-fallback" aria-hidden="true"></span>
+        <span class="badge"></span>
+        <span class="play-hint" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z"/></svg></span>
+      </button>
+      <div class="card-body">
+        <p class="card-work"></p>
+        <p class="card-meta"><span class="card-ep"></span><span class="card-time"></span></p>
+        <h3 class="card-title"></h3>
+        <p class="card-note"></p>
+        <div class="card-tags"></div>
+      </div>
+      <div class="card-actions">
+        <button class="act-play" type="button">Play</button>
+        <button class="act-edit" type="button">Edit</button>
+        <button class="act-delete" type="button">Delete</button>
+      </div>
+    </article>
+  </template>
+
+  <dialog id="editor">
+    <form id="editorForm" novalidate>
+      <div class="editor-media">
+        <img id="edThumb" alt="" referrerpolicy="no-referrer">
+      </div>
+      <div class="editor-body">
+        <p id="edEpisode" class="editor-episode"></p>
+        <div class="editor-times">
+          <label class="field">
+            <span>Start</span>
+            <input id="edStart" inputmode="decimal" placeholder="m:ss" autocomplete="off">
+          </label>
+          <label class="field">
+            <span>End <em>(blank = moment)</em></span>
+            <input id="edEnd" inputmode="decimal" placeholder="m:ss" autocomplete="off">
+          </label>
+        </div>
+        <label class="field">
+          <span>Title</span>
+          <input id="edTitle" maxlength="200" autocomplete="off">
+        </label>
+        <label class="field">
+          <span>Note</span>
+          <textarea id="edNote" rows="3" maxlength="5000"></textarea>
+        </label>
+        <label class="field">
+          <span>Tags</span>
+          <input id="edTags" placeholder="Comma separated, e.g. OP, 神作畫" autocomplete="off">
+        </label>
+        <p id="edError" class="error" role="alert"></p>
+        <details id="edDanmakuWrap" class="danmaku">
+          <summary>Danmaku around this scene (<span id="edDanmakuCount"></span>)</summary>
+          <ul id="edDanmaku"></ul>
+        </details>
+      </div>
+      <footer class="editor-actions">
+        <button id="edDelete" class="btn ghost danger" type="button">Delete</button>
+        <span class="spacer"></span>
+        <button id="edPlay" class="btn ghost" type="button">Play</button>
+        <button id="edCancel" class="btn ghost" type="button">Cancel</button>
+        <button id="edSave" class="btn primary" type="submit">Save</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" hidden>
+    <span id="toastMsg"></span>
+    <button id="toastAction" type="button" hidden></button>
+  </div>
+
+  <script src="common.js"></script>
+  <script src="manager.js"></script>
+</body>
+</html>

@@ -1,5 +1,8 @@
 // background.js
 
+// Scene bookmark storage (BOOKMARK_* messages).
+importScripts('bookmarks/common.js', 'bookmarks/store.js');
+
 chrome.runtime.onInstalled.addListener(async () => {
   const { settings } = await chrome.storage.local.get("settings");
   if (!settings) {

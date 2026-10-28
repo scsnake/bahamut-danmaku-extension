@@ -34,12 +34,20 @@ A clean, lightweight popup UI (`popup.html`) allowing you to:
 - Manage your custom Keyword Blocklist.
 - Manage your User ID Blocklist.
 
+### 5. Scene Bookmarks (Best-Scene Collection)
+- **Save a moment or a clip while watching**: hover the player for the toolbar in the top-right corner, or use the keyboard — `B` saves the current moment, `[` marks a clip's start and `]` its end (`Esc` cancels). Shortcuts are ignored while typing in any input.
+- **Captured automatically**: work and episode title, a thumbnail of the current frame (falling back to the anime cover), and up to 30 danmaku from around the scene.
+- **In-player list**: the toolbar's list button shows this episode's bookmarks — click one to jump there. Clips play back and pause at their end, with a *Replay* option.
+- **Bookmark Manager** (`bookmarks/manager.html`, opened from the popup or the in-player list): scenes grouped by work, full-text search (titles, notes, tags, danmaku), Moment/Clip and tag filters, editing of title/note/tags/start/end, delete with undo, and JSON export/import for backup or moving to another browser.
+- **Play from the manager**: reuses an already-open tab of that episode and seeks in place; otherwise opens a deep link (`animeVideo.php?sn=…#dmk=start-end`) that seeks once the episode has loaded.
+
 ## Architecture
 
 - **`manifest.json`**: MV3 architecture utilizing `service_worker` for background processing.
 - **`background.js`**: Manages the API data fetching and maintains the persistent session with the `chrome.languageModel` API for Pass-2 filtering.
 - **`content.js`**: Hooks into the video player, manages the rendering loop synchronized to `videoElement.currentTime`, extracts the `videoSn`, handles click events, and parses `localStorage` for legacy settings.
 - **`content.css`**: Provides hardware-accelerated animations (`transform: translateX`) and the light/dark mode UI for the contextual modal.
+- **`bookmarks/`**: Scene bookmarks. `common.js` holds helpers shared by every context; `store.js` (imported by `background.js`) is the single writer to `chrome.storage.local`, which serializes updates from the page and the manager; `content-bookmarks.js`/`.css` is the in-player toolbar, panel and quick editor; `manager.html`/`.js`/`.css` is the full-page manager.
 
 ## Installation for Development
 

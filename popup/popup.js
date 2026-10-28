@@ -18,6 +18,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     userBlocklist: []
   };
 
+  const { bookmarks = [] } = await chrome.storage.local.get("bookmarks");
+  document.getElementById('bookmarkCount').textContent = bookmarks.length ? `(${bookmarks.length})` : '';
+  document.getElementById('openBookmarks').addEventListener('click', () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL('bookmarks/manager.html') });
+    window.close();
+  });
+
   // Initialize UI
   aiFilterToggle.checked = settings.aiFilterEnabled;
   renderList(keywordList, settings.keywordBlocklist, (val) => removeKeyword(val));
