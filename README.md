@@ -20,7 +20,8 @@ To maintain perfect video performance while evaluating thousands of comments, th
   - **Webpage Integration**: Automatically reads your keyword filters from Bahamut's "進階設定" panel (server-rendered in the page) and follows them as you add or delete keywords.
   
 - **Pass 2: AI Semantic Filtering (Gemini Nano)**
-  - Uses a Just-In-Time (JIT) batching strategy. A few seconds before a comment appears on-screen, it is passed to Chrome's built-in local `aiOriginTrial.languageModel`.
+  - Checks comments ahead of the playhead (up to 5 minutes, soonest first, also while paused), so results are ready before comments are due. Each unique text is checked once and the result is kept for the page, so repeated texts ("www") cost nothing. Uses Chrome's built-in local Prompt API (`LanguageModel`).
+  - A comment that is still unchecked 3 s after its time is dropped. If the AI is unavailable, comments show unfiltered.
   - The AI evaluates the semantics of the comment to catch *spoilers (劇透)*, *inappropriate sexual intent*, and *toxic behavior*, including comments that try to evade standard filters using similar phonetics or symbols.
 
 ### 3. Interactive Danmaku Context Modal

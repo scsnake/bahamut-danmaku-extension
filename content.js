@@ -12,7 +12,13 @@ const FONT_SIZES = { 0: 16, 1: 24, 2: 28 };
 const MODES = { 0: 'rolling', 1: 'top', 2: 'bottom' };
 // Comments still waiting for the AI this long after their time are dropped.
 const GRACE_TENTHS = 30;
-const AI_LOOKAHEAD_TENTHS = 20;
+// The AI checks comments up to this far ahead of the playhead, a few unique
+// texts per request, so the soonest ones come back first. Shorter texts
+// skip the AI.
+const AI_AHEAD_TENTHS = 3000;
+const AI_BATCH_SIZE = 4;
+const AI_MIN_TEXT = 3;
+const AI_SCAN_MS = 250;
 // Live updates: fetch the list again this often while the video plays.
 // New comments up to LIVE_CATCHUP_MS behind the playhead (for example one
 // the viewer just sent) show at once, part-way through.
@@ -41,6 +47,11 @@ let playerElement = null;
 let overlayElement = null;
 let danmakuData = [];      // sorted by time; `time` is in tenths of a second
 let bySn = new Map();
+let byText = new Map();    // text -> comments with that text
+// AI results per text (true = allowed). Kept across reloads, seeks and
+// episodes, so a repeated text ("www") is checked once.
+const aiVerdicts = new Map();
+let aiInFlight = false;
 let settings = {};
 let officialKeywords = [];
 let display = readOfficialDisplay();
@@ -104,6 +115,7 @@ function logStats() {
     waiting: dueQueue.length,
     nextIndex,
     total: danmakuData.length,
+    aiReadySec: settings.aiFilterEnabled ? aiReadySec() : undefined,
     fps: f.playingMs ? Math.round(f.frames * 10000 / f.playingMs) / 10 : null,
     slowFrames: f.slowFrames,
     maxFrameMs: Math.round(f.maxFrameMs),
@@ -288,6 +300,7 @@ async function init() {
   requestAnimationFrame(measureFrame);
   videoElement.addEventListener('loadedmetadata', () => dlog('loadedmetadata', { duration: videoElement.duration }));
   window.addEventListener('pagehide', flushDebugLog);
+  setInterval(aiScan, AI_SCAN_MS);
   setInterval(liveRefresh, LIVE_REFRESH_MS);
 
   await loadDanmaku('init');
@@ -350,15 +363,14 @@ async function loadDanmaku(reason) {
   // The episode changed while this request was in flight.
   if (sn !== currentVideoSn) return;
   const previous = bySn;
-  list.forEach(d => {
-    const prev = previous.get(d.sn);
-    if (prev) {
-      d.aiEvaluated = prev.aiEvaluated === true;
-      d.aiBlocked = prev.aiBlocked;
-    }
-  });
   danmakuData = list;
   bySn = new Map(list.map(d => [d.sn, d]));
+  byText = new Map();
+  for (const d of list) {
+    const same = byText.get(d.text);
+    if (same) same.push(d);
+    else byText.set(d.text, [d]);
+  }
   processDanmaku();
   const added = previous.size ? list.filter(d => !previous.has(d.sn)) : [];
   dlog('loaded', {
@@ -394,7 +406,7 @@ function showLateArrivals(added) {
   for (const d of added) {
     const startMs = d.time * 100;
     if (d.time > lastTenths || nowMs - startMs > LIVE_CATCHUP_MS) continue;
-    if (d.isBlocked || (settings.aiFilterEnabled && d.aiEvaluated !== true)) continue;
+    if (d.isBlocked || !aiReady(d)) continue;
     if (renderDanmaku(d, startMs, Math.max(0, nowMs - startMs))) stats.lateShown++;
   }
 }
@@ -461,6 +473,7 @@ function changeEpisode(sn) {
   cleanAll();
   danmakuData = [];
   bySn = new Map();
+  byText = new Map();
   nextIndex = 0;
   lastTenths = 0;
   lastBucket = null;
@@ -566,58 +579,68 @@ function passesBasicFilter(danmaku) {
 
 function processDanmaku() {
   danmakuData.forEach(d => {
-    d.isBlocked = !passesBasicFilter(d);
-    if (d.aiEvaluated === undefined) d.aiEvaluated = false;
-    if (d.aiBlocked) d.isBlocked = true;
+    d.isBlocked = !passesBasicFilter(d) ||
+      (settings.aiFilterEnabled && aiVerdicts.get(d.text) === false);
   });
 }
 
-function requestAiEvaluation(nowTenths) {
-  const toEvaluate = [];
-  for (let i = nextIndex; i < danmakuData.length; i++) {
-    const d = danmakuData[i];
-    if (d.time > nowTenths + AI_LOOKAHEAD_TENTHS) break;
-    if (!d.isBlocked && !d.aiEvaluated) toEvaluate.push(d);
-  }
-  for (const d of dueQueue) {
-    if (!d.isBlocked && !d.aiEvaluated) toEvaluate.push(d);
-  }
-  if (!toEvaluate.length) return;
+// True when the comment may show as far as the AI is concerned.
+function aiReady(d) {
+  return !settings.aiFilterEnabled || (d.text || '').length < AI_MIN_TEXT || aiVerdicts.has(d.text);
+}
 
-  toEvaluate.forEach(d => { d.aiEvaluated = 'pending'; });
-  stats.aiRequested += toEvaluate.length;
-  const batch = toEvaluate.map(d => ({ sn: d.sn, text: d.text }));
+// Checks comments with the AI ahead of the playhead, soonest first, one
+// request at a time. Runs while paused too, so the buffer grows.
+function aiScan() {
+  if (!settings.aiFilterEnabled || aiInFlight || !videoElement || !danmakuData.length) return;
+  const nowTenths = videoElement.currentTime * 10;
+  const texts = [];
+  for (let i = lowerBound(danmakuData, nowTenths - GRACE_TENTHS); i < danmakuData.length; i++) {
+    const d = danmakuData[i];
+    if (d.time > nowTenths + AI_AHEAD_TENTHS) break;
+    if (d.isBlocked || aiReady(d) || texts.includes(d.text)) continue;
+    texts.push(d.text);
+    if (texts.length === AI_BATCH_SIZE) break;
+  }
+  if (!texts.length) return;
+
+  aiInFlight = true;
+  stats.aiRequested += texts.length;
   const started = performance.now();
-  chrome.runtime.sendMessage({ type: 'AI_FILTER_BATCH', batch }, (res) => {
-    if (chrome.runtime.lastError || !res || !res.success) {
-      stats.aiFailed += toEvaluate.length;
+  chrome.runtime.sendMessage({ type: 'AI_FILTER_BATCH', texts }, (res) => {
+    aiInFlight = false;
+    const ok = !chrome.runtime.lastError && res && res.success;
+    if (!ok) {
+      stats.aiFailed += texts.length;
       dlog('aiBatchFailed', {
-        size: toEvaluate.length,
+        size: texts.length,
         error: chrome.runtime.lastError?.message || res?.error || 'no response',
       });
-    } else if (performance.now() - started > 1000) {
-      dlog('aiBatchSlow', { size: toEvaluate.length, ms: Math.round(performance.now() - started) });
+    } else if (performance.now() - started > 3000) {
+      dlog('aiBatchSlow', { size: texts.length, ms: Math.round(performance.now() - started) });
     }
-    if (res && res.success) {
-      const evaluated = new Map(toEvaluate.map(d => [d.sn, d]));
-      res.results.forEach(r => {
-        const d = evaluated.get(r.sn);
-        if (d && d.aiEvaluated === 'pending') {
-          d.aiEvaluated = true;
-          if (!r.allowed) {
-            d.aiBlocked = true;
-            d.isBlocked = true;
-            stats.aiBlocked++;
-          }
-        }
-      });
-    } else {
-      // AI failed; unblock so items still render.
-      toEvaluate.forEach(d => {
-        if (d.aiEvaluated === 'pending') d.aiEvaluated = true;
-      });
+    // Fail open: a text the AI could not check is shown.
+    const results = new Map(ok ? res.results.map(r => [r.text, r.allowed]) : []);
+    for (const text of texts) {
+      const allowed = results.get(text) !== false;
+      aiVerdicts.set(text, allowed);
+      if (allowed) continue;
+      stats.aiBlocked++;
+      dlog('aiBlockedText', { text });
+      (byText.get(text) || []).forEach(d => { d.isBlocked = true; });
     }
   });
+}
+
+// Seconds of comments ahead of the playhead the AI has already checked.
+function aiReadySec() {
+  const nowTenths = videoElement.currentTime * 10;
+  for (let i = lowerBound(danmakuData, nowTenths); i < danmakuData.length; i++) {
+    const d = danmakuData[i];
+    if (d.time > nowTenths + AI_AHEAD_TENTHS) break;
+    if (!d.isBlocked && !aiReady(d)) return Math.round(d.time - nowTenths) / 10;
+  }
+  return AI_AHEAD_TENTHS / 10;
 }
 
 // --- Playback loop -----------------------------------------------------------
@@ -654,7 +677,6 @@ function step(nowMs, bucket) {
   if (!overlayOn() || !display.enabled || !danmakuData.length) return;
 
   const nowTenths = bucket / 100;
-  if (settings.aiFilterEnabled) requestAiEvaluation(nowTenths);
 
   while (nextIndex < danmakuData.length && danmakuData[nextIndex].time <= nowTenths) {
     dueQueue.push(danmakuData[nextIndex]);
@@ -672,7 +694,7 @@ function step(nowMs, bucket) {
       stats.droppedLate++;
       return false;
     }
-    if (settings.aiFilterEnabled && d.aiEvaluated !== true) return true;
+    if (!aiReady(d)) return true;
     if (renderDanmaku(d, nowMs)) stats.rendered++;
     return false;
   });
@@ -708,10 +730,6 @@ function resync() {
   nextIndex = lowerBound(danmakuData, nowTenths);
   lastTenths = nowTenths - 0.001;
   lastBucket = null;
-  danmakuData.forEach(d => {
-    // Stale in-flight AI results should be ignored; re-evaluate on demand.
-    if (d.aiEvaluated === 'pending') d.aiEvaluated = false;
-  });
   backfill(nowTenths * 100);
   resume();
 }
@@ -726,7 +744,7 @@ function backfill(nowMs) {
   for (let i = from; i < nextIndex; i++) {
     const d = danmakuData[i];
     if (d.isBlocked) continue;
-    if (settings.aiFilterEnabled && d.aiEvaluated !== true) continue;
+    if (!aiReady(d)) continue;
     const startMs = d.time * 100;
     if (renderDanmaku(d, startMs, nowMs - startMs)) stats.backfilled++;
   }

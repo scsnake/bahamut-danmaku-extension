@@ -144,15 +144,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'AI_FILTER_BATCH') {
     (async () => {
       try {
-        // Evaluate in parallel — cloned sessions in evaluateCommentWithAi
-        // keep state clean.
-        const results = await Promise.all(message.batch.map(async (danmaku) => {
-          if (!danmaku.text || danmaku.text.length <= 2) {
-            return { sn: danmaku.sn, allowed: true };
-          }
-          const allowed = await evaluateCommentWithAi(danmaku.text);
-          return { sn: danmaku.sn, allowed };
-        }));
+        // One text at a time: parallel prompts were not faster, and the
+        // content script orders the texts soonest first.
+        const results = [];
+        for (const text of message.texts || []) {
+          results.push({ text, allowed: await evaluateCommentWithAi(text) });
+        }
         sendResponse({ success: true, results });
       } catch (err) {
         sendResponse({ success: false, error: err.message });
