@@ -1,7 +1,8 @@
 // search/search.js — find danmaku keywords (for example 高能) across works.
 //
-// 1. Works: the viewer's subscribed works (mygather.php, needs the Bahamut
-//    login cookie), works added by URL, and the work open in the current tab
+// 1. Works: the viewer's subscribed works (mygather.php) and watch history
+//    (history.php, 30 works per page, newest first) — both need the Bahamut
+//    login cookie — works added by URL, and the work open in the current tab
 //    (?videoSn= from the popup).
 // 2. Episodes: animeRef.php?sn= redirects to one episode; video.php for that
 //    episode lists all of the work's episodes.
@@ -14,6 +15,7 @@
 const ANI = 'https://ani.gamer.com.tw';
 const VIDEO_API = 'https://api.gamer.com.tw/anime/v1/video.php';
 const DANMU_API = 'https://api.gamer.com.tw/anime/v1/danmu.php';
+const HISTORY_API = 'https://api.gamer.com.tw/anime/v3/history.php';
 const MAX_GATHER_PAGES = 30;
 // Requests at the same time; keeps the load on Bahamut low.
 const FETCH_CONCURRENCY = 3;
@@ -29,6 +31,8 @@ const works = new Map();
 const danmuCache = new Map();    // videoSn -> [{ time, text, norm }]
 let results = [];                // [{ work, episode, moments }]
 let run = null;                  // { cancelled } while a search runs
+let historyPage = 0;             // watch-history pages loaded so far
+let historyPages = Infinity;     // totalPage from the API
 
 // ---- Works ------------------------------------------------------------------
 
@@ -73,6 +77,42 @@ async function loadFavorites() {
     showMsg('worksMsg', t('search.loadFailed', { message: err.message }));
   } finally {
     $('loadFavs').disabled = false;
+    renderWorks();
+  }
+}
+
+// Each click loads the next page of the watch history (one entry per work,
+// with the last episode watched).
+async function loadHistory() {
+  const button = $('loadHistory');
+  button.disabled = true;
+  showMsg('worksMsg', t('search.loadingHistory'));
+  try {
+    const json = await fetchJson(`${HISTORY_API}?page=${historyPage + 1}`);
+    const data = (json && json.data) || {};
+    const list = data.history || [];
+    historyPages = Number(data.totalPage) || historyPage + 1;
+    historyPage++;
+    for (const h of list) {
+      const key = `anime:${h.animeSn}`;
+      if (works.has(key)) continue;
+      works.set(key, {
+        key,
+        animeSn: String(h.animeSn),
+        videoSn: String(h.videoSn),
+        title: h.title || `#${h.animeSn}`,
+        info: h.episode ? t('search.watchedUpTo', { episode: episodeText(h.episode) }) : '',
+        cover: h.cover || '',
+        checked: false,
+      });
+    }
+    showMsg('worksMsg', list.length || historyPage > 1 ? '' : t('search.noHistory'));
+  } catch (err) {
+    showMsg('worksMsg', t('search.loadFailed', { message: err.message }));
+  } finally {
+    const more = historyPage < historyPages;
+    button.textContent = t(historyPage && more ? 'search.loadMoreHistory' : 'search.loadHistory');
+    button.disabled = !more;
     renderWorks();
   }
 }
@@ -127,6 +167,7 @@ async function resolveEpisodes(work) {
   const json = await fetchJson(`${VIDEO_API}?videoSn=${encodeURIComponent(work.videoSn)}`);
   const anime = json && json.data && json.data.anime;
   if (!anime) throw new Error(t('search.noEpisode'));
+  work.animeSn = String(anime.animeSn);
   // The API's title ends with the current episode, as in "魔法少女小圓 [12]".
   if (!work.refSn || work.title.startsWith('#')) work.title = String(anime.title || work.title).replace(/\s*\[[^\]]*\]$/, '');
   if (!work.cover && anime.cover) work.cover = anime.cover;
@@ -209,8 +250,11 @@ async function startSearch() {
     progress(++done, chosen.length, 'search.progressWorks');
   }, current);
 
-  // Danmaku of each episode.
-  const jobs = chosen.flatMap(work => (work.episodes || []).map(episode => ({ work, episode })));
+  // Danmaku of each episode. A work picked from two lists (subscriptions
+  // and history) is searched once.
+  const seen = new Set();
+  const unique = chosen.filter(w => !w.animeSn || !seen.has(w.animeSn) && seen.add(w.animeSn));
+  const jobs = unique.flatMap(work => (work.episodes || []).map(episode => ({ work, episode })));
   done = 0;
   progress(0, jobs.length, 'search.progressEpisodes');
   await pool(jobs, async ({ work, episode }) => {
@@ -349,8 +393,12 @@ function momentItem(episode, moment, prefix) {
   return li;
 }
 
+function episodeText(episode) {
+  return /^\d+(\.\d+)?$/.test(episode) ? t('mgr.episode', { n: episode }) : episode;
+}
+
 function episodeLabel(episode) {
-  const label = /^\d+(\.\d+)?$/.test(episode.episode) ? t('mgr.episode', { n: episode.episode }) : episode.episode;
+  const label = episodeText(episode.episode);
   // Episode groups other than "0" are other versions (for example a dub).
   return episode.group === '0' ? label : `${label} · ${t('search.otherVersion', { n: episode.group })}`;
 }
@@ -411,6 +459,7 @@ function formatTime(sec) {
 // ---- Start ------------------------------------------------------------------
 
 $('loadFavs').addEventListener('click', loadFavorites);
+$('loadHistory').addEventListener('click', loadHistory);
 $('addWorkBtn').addEventListener('click', addWorkFromInput);
 $('addWork').addEventListener('keydown', (e) => { if (e.key === 'Enter') addWorkFromInput(); });
 $('workFilter').addEventListener('input', renderWorks);
