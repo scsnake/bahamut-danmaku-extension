@@ -34,7 +34,12 @@ A clean, lightweight popup UI (`popup.html`) allowing you to:
 - Manage your custom Keyword Blocklist.
 - Manage your User ID Blocklist.
 
-### 5. Scene Bookmarks (Best-Scene Collection)
+### 5. Historical Versioning & Eviction Protection System
+- **Long-term Danmaku Preservation**: Bahamut's servers impose rolling upper limits where newly added comments push out older, classic ones (such as high-effort lyrics, song translations, and key scene annotations).
+- **Automated Snapshotting & Diffs**: The `backup_danmaku.py` engine takes point-in-time snapshots, detects newly evicted comments (`-M`) vs newly added comments (`+N`), and maintains a lossless cumulative master database.
+- **Player Subtitle Generation (ASS)**: Automatically compiles active, evicted, and lyric comments into styled `.ass` subtitle files ready for local media players (IINA, mpv, VLC).
+
+### 6. Scene Bookmarks (Best-Scene Collection)
 - **Save a moment or a clip while watching**: hover the player for the toolbar in the top-right corner, or use the keyboard — `B` saves the current moment, `[` marks a clip's start and `]` its end (`Esc` cancels). Shortcuts are ignored while typing in any input.
 - **Captured automatically**: work and episode title, a thumbnail of the current frame (falling back to the anime cover), and up to 30 danmaku from around the scene.
 - **In-player list**: the toolbar's list button shows this episode's bookmarks — click one to jump there. Clips play back and pause at their end, with a *Replay* option.
@@ -48,6 +53,7 @@ A clean, lightweight popup UI (`popup.html`) allowing you to:
 - **`content.js`**: Hooks into the video player, manages the rendering loop synchronized to `videoElement.currentTime`, extracts the `videoSn`, handles click events, and parses `localStorage` for legacy settings.
 - **`content.css`**: Provides hardware-accelerated animations (`transform: translateX`) and the light/dark mode UI for the contextual modal.
 - **`bookmarks/`**: Scene bookmarks. `common.js` holds helpers shared by every context; `store.js` (imported by `background.js`) is the single writer to `chrome.storage.local`, which serializes updates from the page and the manager; `content-bookmarks.js`/`.css` is the in-player toolbar, panel and quick editor; `manager.html`/`.js`/`.css` is the full-page manager.
+- **`backup_danmaku.py`**: Standalone multi-versioning archival tool that tracks comment lifecycles, lyric annotations, and rolling evictions.
 
 ## Installation for Development
 
@@ -55,3 +61,15 @@ A clean, lightweight popup UI (`popup.html`) allowing you to:
 2. Enable **Developer mode** in the top right corner.
 3. Click **Load unpacked** and select the directory containing this repository.
 4. Navigate to any Bahamut Anime Crazy video (e.g., `https://ani.gamer.com.tw/animeVideo.php?sn=19849`) to see it in action.
+
+## CLI Danmaku Archival & Versioning Tool
+
+To backup and version comments for any anime:
+
+```bash
+# Backup/update by video SN or full URL
+python3 backup_danmaku.py 12331
+# or
+python3 backup_danmaku.py "https://ani.gamer.com.tw/animeVideo.php?sn=12331"
+```
+
