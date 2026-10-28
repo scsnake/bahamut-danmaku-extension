@@ -158,6 +158,11 @@ button:hover {
   background: transparent;
 }
 
+.probe {
+  display: block;
+  margin-top: 8px;
+}
+
 .memo {
   margin: 4px 0 0 24px;
   font-size: 12px;

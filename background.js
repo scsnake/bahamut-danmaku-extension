@@ -12,6 +12,7 @@ chrome.runtime.onInstalled.addListener(async () => {
         densityEnabled: true,
         liveUpdate: true,
         autoAgreeAgeGate: true,
+        audioProbe: false,
         aiFilterEnabled: true,
         aiStrictness: 'moderate', // 'low', 'moderate', 'high'
         keywordBlocklist: [],

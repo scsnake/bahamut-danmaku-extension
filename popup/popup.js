@@ -66,6 +66,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     await saveSettings();
   });
 
+  const audioProbeToggle = document.getElementById('audioProbeToggle');
+  audioProbeToggle.checked = settings.audioProbe === true;
+  audioProbeToggle.addEventListener('change', async (e) => {
+    settings.audioProbe = e.target.checked;
+    await saveSettings();
+  });
+
   const ageGateToggle = document.getElementById('ageGateToggle');
   ageGateToggle.checked = settings.autoAgreeAgeGate !== false;
   ageGateToggle.addEventListener('change', async (e) => {
@@ -103,22 +110,26 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const debugCount = document.getElementById('debugCount');
   const showDebugCount = async () => {
-    const { debugLog = [], opSkipReview = {} } = await chrome.storage.local.get(["debugLog", "opSkipReview"]);
+    const { debugLog = [], opSkipReview = {}, audioProbe = {} } =
+      await chrome.storage.local.get(["debugLog", "opSkipReview", "audioProbe"]);
     const review = Object.keys(opSkipReview).length;
-    debugCount.textContent = `(${debugLog.length}${review ? `, OP ? ${review}` : ''})`;
+    const audio = Object.keys(audioProbe).length;
+    debugCount.textContent = `(${debugLog.length}${review ? `, OP ? ${review}` : ''}${audio ? `, audio ${audio}` : ''})`;
   };
   showDebugCount();
   document.getElementById('exportLog').addEventListener('click', async () => {
     // opSkipReview: episodes where opskip.js could not place the OP.
-    const { debugLog = [], opSkipReview = {} } = await chrome.storage.local.get(["debugLog", "opSkipReview"]);
-    const blob = new Blob([JSON.stringify({ debugLog, opSkipReview }, null, 1)], { type: 'application/json' });
+    // audioProbe: per-second audio numbers from audioprobe.js.
+    const { debugLog = [], opSkipReview = {}, audioProbe = {} } =
+      await chrome.storage.local.get(["debugLog", "opSkipReview", "audioProbe"]);
+    const blob = new Blob([JSON.stringify({ debugLog, opSkipReview, audioProbe }, null, 1)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = `danmaku-debug-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
     a.click();
   });
   document.getElementById('clearLog').addEventListener('click', async () => {
-    await chrome.storage.local.set({ debugLog: [], opSkipReview: {} });
+    await chrome.storage.local.set({ debugLog: [], opSkipReview: {}, audioProbe: {} });
     showDebugCount();
   });
 

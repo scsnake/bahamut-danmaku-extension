@@ -63,6 +63,8 @@ const DmkI18n = (() => {
       'popup.users': '使用者封鎖清單',
       'popup.userPlaceholder': '輸入要封鎖的使用者 ID…',
       'popup.debugLog': '偵錯紀錄',
+      'popup.audioProbe': '記錄音訊特徵（測試）',
+      'popup.audioProbeDesc': '播放時每秒記錄幾項音訊數值（音量、停頓、節拍等），用來測試能否從聲音找出 OP。只記錄數值，不錄音；影片播放不受影響。資料隨偵錯紀錄一起匯出。',
 
       'popup.search': '彈幕搜尋',
       'popup.searchDesc': '在多部作品的彈幕中搜尋關鍵字（例如「高能」），並直接跳到該時間點。',
@@ -245,6 +247,8 @@ const DmkI18n = (() => {
       'popup.users': 'User Blocklist',
       'popup.userPlaceholder': 'Enter User ID to block...',
       'popup.debugLog': 'Debug Log',
+      'popup.audioProbe': 'Record audio features (test)',
+      'popup.audioProbeDesc': 'While a video plays, records a few audio numbers per second (loudness, pauses, beat and more), to test whether the sound can find the OP. Only numbers are kept, no audio; playback is not changed. Exported with the debug log.',
 
       'popup.search': 'Danmaku Search',
       'popup.searchDesc': 'Search comments across works for a keyword (for example 高能) and jump to that moment.',

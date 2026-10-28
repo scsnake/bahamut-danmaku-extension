@@ -44,6 +44,7 @@ let bookmarks = null;
 let densityCurve = null;
 let ageGate = null;
 let opSkip = null;
+let audioProbe = null;
 let videoElement = null;
 let playerElement = null;
 let overlayElement = null;
@@ -264,6 +265,13 @@ async function init() {
     isEnabled: () => settings.densityEnabled !== false,
     getMarks: opSkip.range,
   });
+  audioProbe = initAudioProbe({
+    video: videoElement,
+    player: playerElement,
+    getVideoSn: () => currentVideoSn,
+    isEnabled: () => settings.audioProbe === true,
+    log: dlog,
+  });
   ageGate = watchAgeGate({
     player: playerElement,
     isEnabled: () => settings.autoAgreeAgeGate !== false,
@@ -289,6 +297,7 @@ async function init() {
     opSkip.update();
     densityCurve.update();
     ageGate.check();
+    audioProbe.check();
     if ((prev.overlayEnabled !== false) !== overlayOn()) applyOverlayMode();
   });
 
