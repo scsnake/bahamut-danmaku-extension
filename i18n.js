@@ -34,6 +34,7 @@ const DmkI18n = (() => {
       add: '新增',
       remove: '移除',
 
+      'popup.info': '說明',
       'popup.language': '介面語言',
       'popup.languageDesc': '播放器內的文字會在重新載入頁面後更新。',
       'popup.overlay': '使用增強彈幕層',
@@ -198,6 +199,7 @@ const DmkI18n = (() => {
       add: 'Add',
       remove: 'Remove',
 
+      'popup.info': 'More info',
       'popup.language': 'Language',
       'popup.languageDesc': 'Text in the player changes after you reload the page.',
       'popup.overlay': 'Use enhanced danmaku layer',

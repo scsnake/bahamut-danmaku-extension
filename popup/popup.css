@@ -27,6 +27,7 @@ h3 {
 }
 
 .setting-group {
+  position: relative;
   margin-bottom: 16px;
 }
 
@@ -37,11 +38,63 @@ h3 {
   gap: 8px;
 }
 
-.desc {
+/* Option hints: an "i" button next to each option shows its hint on hover
+   or keyboard focus, below the option and over the ones after it. A
+   button inside a <label> does not toggle the checkbox when clicked. */
+button.info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-left: 4px;
+  padding: 0;
+  border: 1px solid #666;
+  border-radius: 50%;
+  background: transparent;
+  color: #999;
+  font: italic 700 11px/1 Georgia, "Times New Roman", serif;
+  vertical-align: middle;
+  cursor: help;
+}
+
+button.info:hover,
+button.info:focus-visible {
+  background: transparent;
+  border-color: #00b0f0;
+  color: #00b0f0;
+  outline: none;
+}
+
+.tip {
+  position: absolute;
+  top: 100%;
+  left: 20px;
+  right: 0;
+  z-index: 10;
+  margin: 2px 0 0;
+  padding: 8px 10px;
+  background: #2a2a35;
+  border: 1px solid #444;
+  border-radius: 6px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+  color: #ccc;
   font-size: 12px;
-  color: #888;
-  margin-top: 4px;
-  margin-left: 24px;
+  line-height: 1.5;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  /* Hide at once; show after a short delay so passing over options does not flash hints. */
+  transition: opacity 0.12s, transform 0.12s, visibility 0s linear 0.12s;
+}
+
+.setting-group:has(button.info:hover) > .tip,
+.setting-group:has(button.info:focus-visible) > .tip {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition: opacity 0.12s 0.3s, transform 0.12s 0.3s, visibility 0s linear 0.3s;
 }
 
 .input-group {

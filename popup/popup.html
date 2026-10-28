@@ -11,46 +11,50 @@
 
     <div class="setting-group">
       <label class="select-row">
-        <span data-i18n="popup.language"></span>
+        <span><span data-i18n="popup.language"></span> <button type="button" class="info" aria-describedby="tip-uiLanguage" data-i18n-aria-label="popup.info">i</button></span>
         <!-- Each language is named in itself, so the labels are not translated. -->
-        <select id="uiLanguage">
+        <select id="uiLanguage" aria-describedby="tip-uiLanguage">
           <option value="zh-TW">繁體中文</option>
           <option value="en">English</option>
         </select>
       </label>
-      <p class="desc" data-i18n="popup.languageDesc"></p>
+      <p class="tip" id="tip-uiLanguage" role="tooltip" data-i18n="popup.languageDesc"></p>
     </div>
 
     <div class="setting-group">
       <label>
-        <input type="checkbox" id="overlayToggle">
+        <input type="checkbox" id="overlayToggle" aria-describedby="tip-overlayToggle">
         <span data-i18n="popup.overlay"></span>
+        <button type="button" class="info" aria-describedby="tip-overlayToggle" data-i18n-aria-label="popup.info">i</button>
       </label>
-      <p class="desc" data-i18n="popup.overlayDesc"></p>
+      <p class="tip" id="tip-overlayToggle" role="tooltip" data-i18n="popup.overlayDesc"></p>
     </div>
 
     <div class="setting-group">
       <label>
-        <input type="checkbox" id="liveToggle">
+        <input type="checkbox" id="liveToggle" aria-describedby="tip-liveToggle">
         <span data-i18n="popup.live"></span>
+        <button type="button" class="info" aria-describedby="tip-liveToggle" data-i18n-aria-label="popup.info">i</button>
       </label>
-      <p class="desc" data-i18n="popup.liveDesc"></p>
+      <p class="tip" id="tip-liveToggle" role="tooltip" data-i18n="popup.liveDesc"></p>
     </div>
 
     <div class="setting-group">
       <label>
-        <input type="checkbox" id="densityToggle">
+        <input type="checkbox" id="densityToggle" aria-describedby="tip-densityToggle">
         <span data-i18n="popup.density"></span>
+        <button type="button" class="info" aria-describedby="tip-densityToggle" data-i18n-aria-label="popup.info">i</button>
       </label>
-      <p class="desc" data-i18n="popup.densityDesc"></p>
+      <p class="tip" id="tip-densityToggle" role="tooltip" data-i18n="popup.densityDesc"></p>
     </div>
 
     <div class="setting-group">
       <label>
-        <input type="checkbox" id="aiFilterToggle">
+        <input type="checkbox" id="aiFilterToggle" aria-describedby="tip-aiFilterToggle">
         <span data-i18n="popup.ai"></span>
+        <button type="button" class="info" aria-describedby="tip-aiFilterToggle" data-i18n-aria-label="popup.info">i</button>
       </label>
-      <p class="desc" data-i18n="popup.aiDesc"></p>
+      <p class="tip" id="tip-aiFilterToggle" role="tooltip" data-i18n="popup.aiDesc"></p>
     </div>
 
     <div class="setting-group">
@@ -60,9 +64,9 @@
     </div>
 
     <div class="setting-group">
-      <h3 data-i18n="popup.search"></h3>
-      <p class="desc" data-i18n="popup.searchDesc"></p>
-      <button id="openSearch" class="full-width" data-i18n="popup.openSearch"></button>
+      <h3><span data-i18n="popup.search"></span> <button type="button" class="info" aria-describedby="tip-openSearch" data-i18n-aria-label="popup.info">i</button></h3>
+      <p class="tip" id="tip-openSearch" role="tooltip" data-i18n="popup.searchDesc"></p>
+      <button id="openSearch" aria-describedby="tip-openSearch" class="full-width" data-i18n="popup.openSearch"></button>
     </div>
 
     <div class="setting-group">
