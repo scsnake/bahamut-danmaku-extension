@@ -29,8 +29,14 @@ const LIVE_CATCHUP_MS = 8000;
 const SENT_REFRESH_DELAYS_MS = [800, 4000];
 const SETTINGS_POLL_MS = 1000;
 const REFETCH_DEBOUNCE_MS = 300;
+// How long a danmu.php request for another episode waits for the address
+// bar to show that episode (watchOfficialRefetch).
+const EPISODE_URL_WAIT_MS = 1000;
 const DEBUG_FLUSH_MS = 2000;
 const STATS_INTERVAL_MS = 10000;
+// A seek after which the video has not moved for this long while not paused
+// is logged with its buffer state (watchSeekStall).
+const SEEK_STALL_MS = 2500;
 // How far back to look for comments still crossing the screen after a seek
 // or start (a rolling comment takes at most about 12 s in fullscreen).
 const BACKFILL_MS = 12000;
@@ -314,6 +320,7 @@ async function init() {
 
   videoElement.addEventListener('seeking', cleanAll);
   videoElement.addEventListener('seeked', resync);
+  watchSeekStall();
   videoElement.addEventListener('loadedmetadata', resync); // ad -> episode
   videoElement.addEventListener('pause', pause);
   videoElement.addEventListener('waiting', pause);
@@ -462,6 +469,29 @@ async function fetchDanmaku(videoSn, geos) {
   return list;
 }
 
+// Diagnostic: after a seek, logs when playback does not move although the
+// video is not paused (for example a seek to 0:00 that never plays), with
+// the buffered ranges, so a stall can be told apart from our own work.
+function watchSeekStall() {
+  let check = 0;
+  videoElement.addEventListener('seeked', () => {
+    clearTimeout(check);
+    const at = videoElement.currentTime;
+    check = setTimeout(() => {
+      const v = videoElement;
+      if (v.paused || adActive || Math.abs(v.currentTime - at) > 0.2) return;
+      const buffered = [];
+      for (let i = 0; i < v.buffered.length; i++) {
+        buffered.push([Math.round(v.buffered.start(i) * 100) / 100, Math.round(v.buffered.end(i) * 100) / 100]);
+      }
+      dlog('seekStall', {
+        at: Math.round(at * 100) / 100, readyState: v.readyState, networkState: v.networkState,
+        buffered, ended: v.ended, error: v.error && v.error.code,
+      });
+    }, SEEK_STALL_MS);
+  });
+}
+
 // The official player fetches danmu.php again after a mute, a keyword
 // change, a source change or a click on its refresh button. Follow it.
 // It also fetches it when it moves to another episode in place (next
@@ -487,11 +517,32 @@ function watchOfficialRefetch() {
       let sn = null;
       try { sn = new URL(entry.name).searchParams.get('videoSn'); } catch (_) {}
       dlog('officialRefetch', { videoSn: sn, ownPending: ownFetchStarts.length });
-      if (sn && sn !== currentVideoSn) changeEpisode(sn);
+      if (sn && sn !== currentVideoSn) {
+        followEpisode(sn);
+        continue;
+      }
       clearTimeout(timer);
       timer = setTimeout(() => loadDanmaku('official'), REFETCH_DEBOUNCE_MS);
     }
   }).observe({ type: 'resource' });
+
+  // Another episode's list: follow it only when the address bar shows that
+  // episode too, so a danmu.php request from some other script on the page
+  // (another extension, a console test) cannot switch the episode. The
+  // player has always pushed the new ?sn= by the time its request shows
+  // here; wait once in case it is late.
+  function followEpisode(sn, waited = false) {
+    if (new URLSearchParams(location.search).get('sn') === sn) {
+      if (sn === currentVideoSn) return;
+      changeEpisode(sn);
+      clearTimeout(timer);
+      timer = setTimeout(() => loadDanmaku('official'), REFETCH_DEBOUNCE_MS);
+    } else if (!waited) {
+      setTimeout(() => followEpisode(sn, true), EPISODE_URL_WAIT_MS);
+    } else {
+      dlog('foreignDanmuFetch', { videoSn: sn, url: location.search });
+    }
+  }
 }
 
 // Drops the old episode's list; the caller loads the new one.
