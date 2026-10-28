@@ -17,6 +17,9 @@ const SETTINGS_POLL_MS = 1000;
 const REFETCH_DEBOUNCE_MS = 300;
 const DEBUG_FLUSH_MS = 2000;
 const STATS_INTERVAL_MS = 10000;
+// How far back to look for comments still crossing the screen after a seek
+// or start (a rolling comment takes at most about 12 s in fullscreen).
+const BACKFILL_MS = 12000;
 
 let currentVideoSn = null;
 let videoElement = null;
@@ -50,7 +53,7 @@ const debugBuffer = [];
 const stats = newStats();
 
 function newStats() {
-  return { rendered: 0, droppedLate: 0, blocked: 0, aiRequested: 0, aiBlocked: 0, aiFailed: 0 };
+  return { rendered: 0, backfilled: 0, droppedLate: 0, blocked: 0, aiRequested: 0, aiBlocked: 0, aiFailed: 0 };
 }
 
 function dlog(event, data) {
@@ -173,6 +176,7 @@ async function init() {
   danmuLayer.appendChild(overlayElement);
   new ResizeObserver(onResize).observe(overlayElement);
   onResize();
+  addPlayerToggle();
   applyOverlayMode();
   dlog('player', {
     area: [areaWidth, areaHeight],
@@ -221,14 +225,47 @@ async function init() {
   await loadDanmaku();
 }
 
-// Our layer or the official one (popup switch). The official player keeps
-// running underneath; the `dmk-active` class only hides its comments.
+// Our layer or the official one (popup switch or control-bar button). The
+// official player keeps running underneath; the `dmk-active` class only
+// hides its comments.
 function applyOverlayMode() {
   const on = overlayOn();
   playerElement.classList.toggle('dmk-active', on);
+  updatePlayerToggle();
   dlog('overlayMode', { on });
   if (on) resync();
   else cleanAll();
+}
+
+let playerToggle = null;
+
+// A button next to the official danmaku button in the control bar.
+function addPlayerToggle() {
+  const officialButton = playerElement.querySelector('#danmuToggle');
+  if (!officialButton) {
+    dlog('error', { where: 'addPlayerToggle', message: '#danmuToggle not found' });
+    return;
+  }
+  playerToggle = document.createElement('button');
+  playerToggle.type = 'button';
+  playerToggle.className = 'vjs-control dmk-layer-toggle';
+  playerToggle.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    // storage.onChanged applies the change, in this tab and in others.
+    await chrome.storage.local.set({ settings: { ...settings, overlayEnabled: !overlayOn() } });
+  });
+  officialButton.after(playerToggle);
+  updatePlayerToggle();
+}
+
+function updatePlayerToggle() {
+  if (!playerToggle) return;
+  const on = overlayOn();
+  playerToggle.textContent = on ? '增強' : '官方';
+  playerToggle.classList.toggle('is-on', on);
+  playerToggle.title = on
+    ? 'Enhanced danmaku layer (click for the official one)'
+    : 'Official danmaku (click for the enhanced layer)';
 }
 
 // Loads (or reloads) the list. On a reload, keeps what is on screen and the
@@ -513,8 +550,7 @@ function step(nowMs, bucket) {
       return false;
     }
     if (settings.aiFilterEnabled && d.aiEvaluated !== true) return true;
-    renderDanmaku(d, nowMs);
-    stats.rendered++;
+    if (renderDanmaku(d, nowMs)) stats.rendered++;
     return false;
   });
 }
@@ -541,7 +577,8 @@ function cleanAll() {
   dueQueue = [];
 }
 
-// Restart from the current position: nothing before it renders again.
+// Restart from the current position (after a seek, a start, an ad or a
+// switch back to our layer).
 function resync() {
   cleanAll();
   const nowTenths = videoElement.currentTime * 10;
@@ -552,7 +589,24 @@ function resync() {
     // Stale in-flight AI results should be ignored; re-evaluate on demand.
     if (d.aiEvaluated === 'pending') d.aiEvaluated = false;
   });
+  backfill(nowTenths * 100);
   resume();
+}
+
+// Shows the comments from just before the current position that would still
+// be on screen, already part-way through. The official player only shows
+// comments that start after a seek. Comments that are not checked by the AI
+// yet are skipped.
+function backfill(nowMs) {
+  if (!overlayOn() || !display.enabled || adActive || !overlayElement) return;
+  const from = lowerBound(danmakuData, (nowMs - BACKFILL_MS) / 100);
+  for (let i = from; i < nextIndex; i++) {
+    const d = danmakuData[i];
+    if (d.isBlocked) continue;
+    if (settings.aiFilterEnabled && d.aiEvaluated !== true) continue;
+    const startMs = d.time * 100;
+    if (renderDanmaku(d, startMs, nowMs - startMs)) stats.backfilled++;
+  }
 }
 
 function onResize() {
@@ -566,10 +620,12 @@ function onResize() {
 
 // --- Rendering ---------------------------------------------------------------
 
-function renderDanmaku(d, nowMs) {
+// Shows one comment that starts at video time `startMs`. `elapsedMs` > 0
+// places it part-way through (backfill). Returns false if nothing is shown.
+function renderDanmaku(d, startMs, elapsedMs = 0) {
   const mode = MODES[d.position] || 'rolling';
-  if (!display.modeAllow[mode] || display.opacity === 0) return;
-  if (document.visibilityState !== 'visible') return;
+  if (!display.modeAllow[mode] || display.opacity === 0) return false;
+  if (document.visibilityState !== 'visible') return false;
 
   const el = document.createElement('div');
   el.className = `custom-danmaku-item danmaku-mode-${mode}`;
@@ -606,13 +662,19 @@ function renderDanmaku(d, nowMs) {
     keyframes = [{ visibility: 'visible' }, { visibility: 'visible' }];
   }
 
-  const pos = lanes[mode].allocate(height, nowMs, nowMs + lockMs);
+  if (elapsedMs >= durationMs) {
+    el.remove();
+    return false;
+  }
+
+  const pos = lanes[mode].allocate(height, startMs, startMs + lockMs);
   if (mode === 'bottom') el.style.bottom = `${pos}px`;
   else el.style.top = `${pos}px`;
   el.style.visibility = '';
 
   const anim = el.animate(keyframes, { duration: durationMs, easing: 'linear', fill: 'forwards' });
   anim.playbackRate = videoElement.playbackRate || 1;
+  if (elapsedMs > 0) anim.currentTime = elapsedMs;
   activeAnimations.add(anim);
 
   // If the video was already paused when this comment was scheduled, hold it.
@@ -630,6 +692,7 @@ function renderDanmaku(d, nowMs) {
     videoElement.pause();
     showDanmakuModal(d);
   });
+  return true;
 }
 
 function removeOnScreen(predicate) {

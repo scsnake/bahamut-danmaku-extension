@@ -2,10 +2,29 @@
 
 /* Hide the official danmaku, but only once our overlay is in place (the
    `dmk-active` class), so a failed start leaves the official one visible.
+   Use opacity, not display: none — the official player measures its layer
+   and its comments, and a display: none layer measures as about 0 px wide,
+   which breaks its speeds and start position after switching back.
    Keep its parent `.vjs-danmu`: our overlay lives inside it, so both cover
    the same area. */
 .dmk-active .vjs-danmu > .danmu-warp {
-  display: none !important;
+  opacity: 0 !important;
+}
+
+/* Control-bar switch between our layer and the official one */
+.video-js .vjs-control.dmk-layer-toggle {
+  width: auto;
+  min-width: 44px;
+  padding: 0 6px;
+  font-size: 13px;
+  font-weight: 700;
+  /* !important: the player's control color rule has an ID in its selector. */
+  color: #aaa !important;
+  cursor: pointer;
+}
+
+.video-js .vjs-control.dmk-layer-toggle.is-on {
+  color: #00b0f0 !important;
 }
 
 /* Our custom overlay */
