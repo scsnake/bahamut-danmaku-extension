@@ -3,7 +3,9 @@
 // In-player half of scene bookmarks: a hover toolbar (save moment, mark clip,
 // list this episode's bookmarks), keyboard shortcuts, a quick editor,
 // deep-link seeking (#dmk=start[-end]) and clip playback that stops at the
-// clip's end. content.js calls initBookmarks() once the player exists.
+// clip's end. content.js calls initBookmarks() once the player exists, and
+// episodeChanged() on the returned object when the player moves to another
+// episode in place.
 //
 // Shortcuts (ignored while typing in any input):
 //   B  bookmark the current moment
@@ -22,9 +24,9 @@ const BM_ICONS = {
   list: 'M4.5 7h15M4.5 12h15M4.5 17h9',
 };
 
-function initBookmarks({ video, container, videoSn, getDanmaku }) {
+function initBookmarks({ video, container, getVideoSn, getDanmaku }) {
   const { formatTime, formatRange, isClip, displayTitle } = DmkBookmarks;
-  videoSn = String(videoSn);
+  const videoSn = () => String(getVideoSn());
 
   let episodeBookmarks = [];
   let pendingClip = null; // { start, thumb } until the clip end is marked
@@ -82,11 +84,12 @@ function initBookmarks({ video, container, videoSn, getDanmaku }) {
   // ---- Data -------------------------------------------------------------
 
   function setEpisodeBookmarks(all) {
-    episodeBookmarks = all.filter(b => b.videoSn === videoSn).sort((a, b) => a.start - b.start);
+    episodeBookmarks = all.filter(b => b.videoSn === videoSn()).sort((a, b) => a.start - b.start);
     renderPanel();
   }
 
-  DmkBookmarks.loadAll().then(setEpisodeBookmarks).catch(reportError);
+  const reloadEpisodeBookmarks = () => DmkBookmarks.loadAll().then(setEpisodeBookmarks).catch(reportError);
+  reloadEpisodeBookmarks();
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes.bookmarks) setEpisodeBookmarks(changes.bookmarks.newValue || []);
   });
@@ -130,7 +133,7 @@ function initBookmarks({ video, container, videoSn, getDanmaku }) {
   async function saveBookmark(start, end, thumb) {
     const bookmark = {
       id: DmkBookmarks.newId(),
-      videoSn,
+      videoSn: videoSn(),
       ...readPageMeta(),
       start,
       end,
@@ -286,7 +289,7 @@ function initBookmarks({ video, container, videoSn, getDanmaku }) {
   // The manager page asks an already-open tab to seek instead of opening a new one.
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (!message || message.type !== 'BOOKMARK_PLAY') return;
-    const matches = String(message.videoSn) === videoSn;
+    const matches = String(message.videoSn) === videoSn();
     if (matches) playRange(Number(message.start), message.end == null ? null : Number(message.end));
     sendResponse({ success: matches });
   });
@@ -490,4 +493,14 @@ function initBookmarks({ video, container, videoSn, getDanmaku }) {
     btn.append(svg, label);
     return { btn, label };
   }
+
+  return {
+    // The clip being marked and the clip being played belong to the old episode.
+    episodeChanged() {
+      pendingClip = null;
+      clipGuard = null;
+      renderClipState();
+      reloadEpisodeBookmarks();
+    },
+  };
 }

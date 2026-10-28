@@ -22,6 +22,7 @@ const STATS_INTERVAL_MS = 10000;
 const BACKFILL_MS = 12000;
 
 let currentVideoSn = null;
+let bookmarks = null;
 let videoElement = null;
 let playerElement = null;
 let overlayElement = null;
@@ -196,10 +197,10 @@ async function init() {
     if ((prev.overlayEnabled !== false) !== overlayOn()) applyOverlayMode();
   });
 
-  initBookmarks({
+  bookmarks = initBookmarks({
     video: videoElement,
     container: videoContainer,
-    videoSn,
+    getVideoSn: () => currentVideoSn,
     getDanmaku: () => danmakuData,
   });
 
@@ -273,13 +274,16 @@ function updatePlayerToggle() {
 // a user just muted), and continues from the current position.
 async function loadDanmaku() {
   let list;
+  const sn = currentVideoSn;
   const started = performance.now();
   try {
-    list = await fetchDanmaku(currentVideoSn, display.geos);
+    list = await fetchDanmaku(sn, display.geos);
   } catch (err) {
     dlog('error', { where: 'fetchDanmaku', message: err.message });
     return;
   }
+  // The episode changed while this request was in flight.
+  if (sn !== currentVideoSn) return;
   const previous = bySn;
   list.forEach(d => {
     const prev = previous.get(d.sn);
@@ -328,6 +332,9 @@ async function fetchDanmaku(videoSn, geos) {
 
 // The official player fetches danmu.php again after a mute, a keyword
 // change, a source change or a click on its refresh button. Follow it.
+// It also fetches it when it moves to another episode in place (next
+// episode, episode list, autoplay): it calls history.pushState('?sn=…')
+// without a page load, so the request's videoSn tells us the new episode.
 function watchOfficialRefetch() {
   let timer = 0;
   new PerformanceObserver(entries => {
@@ -338,11 +345,27 @@ function watchOfficialRefetch() {
         ownFetchStarts.splice(own, 1);
         continue;
       }
-      dlog('officialRefetch', { ownPending: ownFetchStarts.length });
+      let sn = null;
+      try { sn = new URL(entry.name).searchParams.get('videoSn'); } catch (_) {}
+      dlog('officialRefetch', { videoSn: sn, ownPending: ownFetchStarts.length });
+      if (sn && sn !== currentVideoSn) changeEpisode(sn);
       clearTimeout(timer);
       timer = setTimeout(loadDanmaku, REFETCH_DEBOUNCE_MS);
     }
   }).observe({ type: 'resource' });
+}
+
+// Drops the old episode's list; the caller loads the new one.
+function changeEpisode(sn) {
+  dlog('episodeChange', { from: currentVideoSn, to: sn, url: location.search });
+  currentVideoSn = sn;
+  cleanAll();
+  danmakuData = [];
+  bySn = new Map();
+  nextIndex = 0;
+  lastTenths = 0;
+  lastBucket = null;
+  if (bookmarks) bookmarks.episodeChanged();
 }
 
 // --- Official settings -----------------------------------------------------
