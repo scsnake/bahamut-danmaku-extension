@@ -140,7 +140,7 @@
   }
 }
 
-.modal-header {
+#danmaku-info-modal .dmk-modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -148,35 +148,35 @@
   padding-bottom: 8px;
 }
 
-.modal-title {
+#danmaku-info-modal .dmk-modal-title {
   font-weight: bold;
   font-size: 16px;
 }
 
-.modal-time {
+#danmaku-info-modal .dmk-modal-time {
   font-size: 14px;
   color: #888;
 }
 
-.modal-content {
+#danmaku-info-modal .dmk-modal-content {
   font-size: 18px;
   margin: 10px 0;
   word-break: break-all;
 }
 
-.modal-meta {
+#danmaku-info-modal .dmk-modal-meta {
   font-size: 14px;
   color: #888;
   margin-bottom: 12px;
 }
 
-.modal-actions {
+#danmaku-info-modal .dmk-modal-actions {
   display: flex;
   gap: 10px;
   justify-content: flex-end;
 }
 
-.modal-actions button {
+#danmaku-info-modal .dmk-modal-actions button {
   background: var(--btn-bg);
   color: var(--btn-text);
   border: none;
@@ -186,20 +186,20 @@
   font-weight: bold;
 }
 
-.modal-actions button:hover {
+#danmaku-info-modal .dmk-modal-actions button:hover {
   background: var(--btn-hover);
 }
 
-.modal-actions button.btn-danger {
+#danmaku-info-modal .dmk-modal-actions button.dmk-btn-danger {
   background: #ff4d4d;
 }
-.modal-actions button.btn-danger:hover {
+#danmaku-info-modal .dmk-modal-actions button.dmk-btn-danger:hover {
   background: #e60000;
 }
 
-.modal-actions button.btn-secondary {
+#danmaku-info-modal .dmk-modal-actions button.dmk-btn-secondary {
   background: #666;
 }
-.modal-actions button.btn-secondary:hover {
+#danmaku-info-modal .dmk-modal-actions button.dmk-btn-secondary:hover {
   background: #555;
 }

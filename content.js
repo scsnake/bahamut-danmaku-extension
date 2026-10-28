@@ -855,40 +855,40 @@ function showDanmakuModal(d) {
   modal.id = 'danmaku-info-modal';
 
   const header = document.createElement('div');
-  header.className = 'modal-header';
+  header.className = 'dmk-modal-header';
   const title = document.createElement('span');
-  title.className = 'modal-title';
+  title.className = 'dmk-modal-title';
   title.textContent = DmkI18n.t('modal.title');
   const timeEl = document.createElement('span');
-  timeEl.className = 'modal-time';
+  timeEl.className = 'dmk-modal-time';
   timeEl.textContent = timeStr;
   header.append(title, timeEl);
 
   const content = document.createElement('div');
-  content.className = 'modal-content';
+  content.className = 'dmk-modal-content';
   content.textContent = d.text;
 
   const meta = document.createElement('div');
-  meta.className = 'modal-meta';
+  meta.className = 'dmk-modal-meta';
   meta.textContent = DmkI18n.t('modal.author', { id: d.userid });
 
   const actions = document.createElement('div');
-  actions.className = 'modal-actions';
+  actions.className = 'dmk-modal-actions';
 
   const copyBtn = document.createElement('button');
-  copyBtn.className = 'btn-copy';
+  copyBtn.className = 'dmk-btn-copy';
   copyBtn.textContent = DmkI18n.t('modal.copy');
 
   const blockUserBtn = document.createElement('button');
-  blockUserBtn.className = 'btn-danger btn-block-user';
+  blockUserBtn.className = 'dmk-btn-danger dmk-btn-block-user';
   blockUserBtn.textContent = DmkI18n.t('modal.blockUser');
 
   const filterTextBtn = document.createElement('button');
-  filterTextBtn.className = 'btn-danger btn-filter-text';
+  filterTextBtn.className = 'dmk-btn-danger dmk-btn-filter-text';
   filterTextBtn.textContent = DmkI18n.t('modal.filterText');
 
   const closeBtn = document.createElement('button');
-  closeBtn.className = 'btn-secondary btn-close';
+  closeBtn.className = 'dmk-btn-secondary dmk-btn-close';
   closeBtn.textContent = DmkI18n.t('modal.close');
 
   actions.append(copyBtn, blockUserBtn, filterTextBtn, closeBtn);
