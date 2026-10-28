@@ -18,9 +18,13 @@
 // - "op君" (a greeting, "op君好久不見") comes in a burst when the OP starts.
 //   "不跳OP" / "OP不跳" / "不跳" is posted when it starts, but also at its end
 //   ("不跳OP，我驕傲"). Both move the start earlier, to their busiest window
-//   OP_MIN_SEC–OP_MAX_SEC before an end found above. Without such an end,
+//   OP_SHORTEST_SEC–OP_MAX_SEC before an end found above. Without such an end,
 //   a burst of OP_GREET_MIN "op君" alone is the start, and the OP is
 //   OP_DEFAULT_SEC long; "不跳" alone places nothing.
+// - "開頭OP" ("開頭OP必有大事") in the first OP_OPENING_EARLY_SEC says the
+//   OP starts the episode: the start is 0 when the end found above is
+//   within OP_MAX_SEC, and OP_OPENING_MIN of them alone give 0 to
+//   OP_DEFAULT_SEC. Later ones are the meme, not a position.
 // - Last, comments that name the OP at all ("神OP", "居然有OP", "op君",
 //   "不跳OP") come all through it, and most at its start or its end. The
 //   OP_DEFAULT_SEC span with the most of them (at least OP_TALK_MIN) is the OP.
@@ -45,6 +49,9 @@
 
 const OP_DEFAULT_SEC = 90;
 const OP_MIN_SEC = 20;
+// A start clue ("op君", "不跳") closer to the end than this is posted during
+// the OP, not at its start (a TV OP is about 90 s).
+const OP_SHORTEST_SEC = 70;
 const OP_MAX_SEC = 150;
 const OP_GROUP_SEC = 3;
 const OP_WINDOW_SEC = 10;
@@ -52,6 +59,8 @@ const OP_START_SNAP_SEC = 15;   // a start this close to 0 is the beginning
 const OP_GREET_MIN = 2;
 const OP_NONE_MIN = 2;
 const OP_TALK_MIN = 4;
+const OP_OPENING_MIN = 2;
+const OP_OPENING_EARLY_SEC = 30;
 const OP_LATEST_FRACTION = 0.4;
 const OP_FILM_MIN_SEC = 45 * 60;
 const OP_FILM_TITLE_RE = /劇場版|剧场版|電影版|电影版|movie/i;
@@ -67,6 +76,7 @@ const OP_NONE_RE = new RegExp(
   '[離离下]線|[離离下]线|是[誰谁]|[呢勒咧](?![a-z])|qq|哭|[傷伤]心|[懷怀]念|被.{0,4}吃|去哪|在哪|' +
   '(?<!笑)死(?!亡?回?[歸归]))|[沒没無无]有?\\s*op|[誰谁]是\\s*op', 'i');
 const OP_GREET_RE = /op\s*君/i;
+const OP_OPENING_RE = /[開开][頭头]\s*op/i;
 const OP_STAY_RE = /不跳過?\s*op|op.{0,12}不跳|^.{0,6}不跳[\s!~.。]*$/i;
 // "op" as a word, not inside "open" or "stop".
 const OP_TALK_RE = /(?<![a-z])op(?![a-z])/i;
@@ -86,6 +96,7 @@ function findOpening(list, duration, film = false) {
   const greets = [];
   const stays = [];
   const talk = [];
+  const openings = [];
   for (const d of list) {
     const text = String(d.text || '').normalize('NFKC');
     const sec = d.time / 10;
@@ -107,27 +118,30 @@ function findOpening(list, duration, film = false) {
       continue;
     }
     if (sec > latest) continue;
+    if (sec <= OP_OPENING_EARLY_SEC && OP_OPENING_RE.test(text)) openings.push(sec);
     if (OP_GREET_RE.test(text)) greets.push(sec);
     else if (OP_STAY_RE.test(text)) stays.push(sec);
     if (OP_TALK_RE.test(text) || OP_STAY_RE.test(text)) talk.push(sec);
   }
   const clues = {
     jump: jumps.length, landed: landed.length, none: none.length,
-    greet: greets.length, stay: stays.length, talk: talk.length,
+    greet: greets.length, stay: stays.length, talk: talk.length, opening: openings.length,
   };
   const found = guess();
   return Object.assign(found || { source: 'unknown' }, { clues }, film ? { film } : {});
 
   function guess() {
     if (none.length >= OP_NONE_MIN &&
-        none.length > jumps.length + landed.length + greets.length + stays.length) {
+        none.length > jumps.length + landed.length + greets.length + stays.length + openings.length) {
       return { source: 'none', votes: none.length };
     }
 
-    // The earliest busiest start-clue window that fits an OP ending at `end`.
+    // The earliest busiest start-clue window that fits an OP ending at `end`;
+    // 0 when "開頭OP" says the OP starts the episode and `end` allows it.
     const startBefore = (end) => {
+      if (openings.length && end <= OP_MAX_SEC) return 0;
       const fit = busiestWindow(greets.concat(stays)
-        .filter(t => t >= end - OP_MAX_SEC && t <= end - OP_MIN_SEC));
+        .filter(t => t >= end - OP_MAX_SEC && t <= end - OP_SHORTEST_SEC));
       return fit ? fit.at : Infinity;
     };
 
@@ -162,6 +176,10 @@ function findOpening(list, duration, film = false) {
         source: clue < Infinity ? 'landed+start' : 'landed',
         votes: land.count,
       };
+    }
+
+    if (openings.length >= OP_OPENING_MIN) {
+      return { start: 0, end: OP_DEFAULT_SEC, source: 'opening', votes: openings.length };
     }
 
     const greet = busiestWindow(greets);
