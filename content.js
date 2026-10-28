@@ -20,6 +20,10 @@ const STATS_INTERVAL_MS = 10000;
 // How far back to look for comments still crossing the screen after a seek
 // or start (a rolling comment takes at most about 12 s in fullscreen).
 const BACKFILL_MS = 12000;
+// Frame timing in the stats entry: a frame this long counts as slow (about
+// 3 missed frames at 60 Hz). On-screen counts are sampled at this interval.
+const SLOW_FRAME_MS = 50;
+const COUNT_SAMPLE_MS = 250;
 
 let currentVideoSn = null;
 let bookmarks = null;
@@ -52,9 +56,16 @@ const activeAnimations = new Set();
 // chrome.storage.local; the popup exports them as a JSON file.
 const debugBuffer = [];
 const stats = newStats();
+let frameStats = newFrameStats();
+let lastFrameAt = 0;
+let lastCountAt = 0;
 
 function newStats() {
   return { rendered: 0, backfilled: 0, droppedLate: 0, blocked: 0, aiRequested: 0, aiBlocked: 0, aiFailed: 0 };
+}
+
+function newFrameStats() {
+  return { frames: 0, playingMs: 0, slowFrames: 0, maxFrameMs: 0, peakOnScreen: 0, peakOfficial: 0 };
 }
 
 function dlog(event, data) {
@@ -77,14 +88,49 @@ function flushDebugLog() {
 
 function logStats() {
   if (!videoElement || videoElement.paused) return;
+  const f = frameStats;
   dlog('stats', {
     ...stats,
     onScreen: activeAnimations.size,
     waiting: dueQueue.length,
     nextIndex,
     total: danmakuData.length,
+    fps: f.playingMs ? Math.round(f.frames * 10000 / f.playingMs) / 10 : null,
+    slowFrames: f.slowFrames,
+    maxFrameMs: Math.round(f.maxFrameMs),
+    peakOnScreen: f.peakOnScreen,
+    peakOfficial: f.peakOfficial,
   });
   Object.assign(stats, newStats());
+  frameStats = newFrameStats();
+}
+
+// Frame rate while the video plays, and the most comments on screen in our
+// layer and in the official one. The official layer keeps running under
+// ours (only hidden), so both counts are live at the same time. It marks
+// finished comments `.useless` and removes them later.
+function measureFrame(now) {
+  requestAnimationFrame(measureFrame);
+  if (videoElement.paused) {
+    lastFrameAt = 0;
+    return;
+  }
+  const f = frameStats;
+  // A longer gap means the tab was hidden (no frames), not a slow frame.
+  if (lastFrameAt && now - lastFrameAt < 1000) {
+    const gap = now - lastFrameAt;
+    f.frames++;
+    f.playingMs += gap;
+    if (gap > SLOW_FRAME_MS) f.slowFrames++;
+    if (gap > f.maxFrameMs) f.maxFrameMs = gap;
+  }
+  lastFrameAt = now;
+  if (now - lastCountAt >= COUNT_SAMPLE_MS) {
+    lastCountAt = now;
+    f.peakOnScreen = Math.max(f.peakOnScreen, activeAnimations.size);
+    f.peakOfficial = Math.max(f.peakOfficial,
+      playerElement.querySelectorAll('.danmu-warp .danmu:not(.useless)').length);
+  }
 }
 
 function overlayOn() {
@@ -220,6 +266,7 @@ async function init() {
     activeAnimations.forEach(a => { a.playbackRate = videoElement.playbackRate || 1; });
   });
   videoElement.addEventListener('seeked', () => dlog('seeked'));
+  requestAnimationFrame(measureFrame);
   videoElement.addEventListener('loadedmetadata', () => dlog('loadedmetadata', { duration: videoElement.duration }));
   window.addEventListener('pagehide', flushDebugLog);
 
