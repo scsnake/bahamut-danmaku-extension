@@ -38,12 +38,17 @@ A clean, lightweight popup UI (`popup.html`) allowing you to:
 - Manage your custom Keyword Blocklist.
 - Manage your User ID Blocklist.
 
-### 5. Historical Versioning & Eviction Protection System
+### 5. Danmaku Search Across Works
+- **Find the scenes viewers reacted to**: search the comments of your subscribed works (or works you add by URL) for keywords such as 高能, and get a list of moments with the number of matching comments.
+- **Jump straight there**: each result opens the episode at that time (`animeVideo.php?sn=…&t=…`).
+- Opened from the popup; when the current tab is an episode, its work is already selected. Requests run 3 at a time, and fetched lists are reused for further searches on the same page.
+
+### 6. Historical Versioning & Eviction Protection System
 - **Long-term Danmaku Preservation**: Bahamut's servers impose rolling upper limits where newly added comments push out older, classic ones (such as high-effort lyrics, song translations, and key scene annotations).
 - **Automated Snapshotting & Diffs**: The `backup_danmaku.py` engine takes point-in-time snapshots, detects newly evicted comments (`-M`) vs newly added comments (`+N`), and maintains a lossless cumulative master database.
 - **Player Subtitle Generation (ASS)**: Automatically compiles active, evicted, and lyric comments into styled `.ass` subtitle files ready for local media players (IINA, mpv, VLC).
 
-### 6. Scene Bookmarks (Best-Scene Collection)
+### 7. Scene Bookmarks (Best-Scene Collection)
 - **Save a moment or a clip while watching**: hover the player for the toolbar in the top-right corner, or use the keyboard — `B` saves the current moment, `[` marks a clip's start and `]` its end (`Esc` cancels). Shortcuts are ignored while typing in any input.
 - **Captured automatically**: work and episode title, a thumbnail of the current frame (falling back to the anime cover), and up to 30 danmaku from around the scene.
 - **In-player list**: the toolbar's list button shows this episode's bookmarks — click one to jump there. Clips play back and pause at their end, with a *Replay* option.
@@ -58,6 +63,7 @@ A clean, lightweight popup UI (`popup.html`) allowing you to:
 - **`i18n.js`**: Interface text in Traditional Chinese (Taiwan, the default) and English, switched in the popup. `_locales/` holds only the extension name and description, which Chrome shows in the browser's own language.
 - **`density.js`**: Draws the density curve as an SVG inside the player's `.vjs-progress-holder`.
 - **`content.css`**: Hides the native comments, styles our comments like the official ones, and provides the light/dark mode UI for the contextual modal.
+- **`search/`**: The danmaku search page (`search.html`/`.js`/`.css`), an extension page that reads the subscription list, episode lists and comment lists with the Bahamut login cookie.
 - **`ROADMAP.md`**: Phases, measured facts about the official player and API, and the planned danmaku search feature.
 - **`bookmarks/`**: Scene bookmarks. `common.js` holds helpers shared by every context; `store.js` (imported by `background.js`) is the single writer to `chrome.storage.local`, which serializes updates from the page and the manager; `content-bookmarks.js`/`.css` is the in-player toolbar, panel and quick editor; `manager.html`/`.js`/`.css` is the full-page manager.
 - **`backup_danmaku.py`**: Standalone multi-versioning archival tool that tracks comment lifecycles, lyric annotations, and rolling evictions.

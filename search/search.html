@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title data-i18n="search.pageTitle">Danmaku Search</title>
+  <link rel="stylesheet" href="search.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1 data-i18n="search.pageTitle"></h1>
+    <p class="muted" data-i18n="search.intro"></p>
+  </header>
+
+  <main>
+    <section class="panel">
+      <div class="panel-head">
+        <h2 data-i18n="search.works"></h2>
+        <span id="workCount" class="muted"></span>
+      </div>
+      <div class="row">
+        <button id="loadFavs" class="btn" type="button" data-i18n="search.loadFavs"></button>
+        <input id="addWork" class="input grow" type="text" autocomplete="off" data-i18n-placeholder="search.addWorkPlaceholder">
+        <button id="addWorkBtn" class="btn" type="button" data-i18n="add"></button>
+      </div>
+      <div class="row">
+        <input id="workFilter" class="input grow" type="search" autocomplete="off" data-i18n-placeholder="search.filterWorks">
+        <button id="selectAll" class="btn ghost" type="button" data-i18n="search.selectAll"></button>
+        <button id="selectNone" class="btn ghost" type="button" data-i18n="search.selectNone"></button>
+      </div>
+      <p id="worksMsg" class="msg" hidden></p>
+      <ul id="workList" class="work-list"></ul>
+    </section>
+
+    <section class="panel">
+      <div class="row">
+        <input id="keywords" class="input grow" type="text" autocomplete="off" data-i18n-placeholder="search.keywordsPlaceholder">
+        <label class="inline">
+          <span data-i18n="search.minCount"></span>
+          <input id="minCount" class="input narrow" type="number" min="1" value="3">
+        </label>
+        <button id="searchBtn" class="btn primary" type="button" data-i18n="search.run"></button>
+        <button id="cancelBtn" class="btn ghost" type="button" data-i18n="cancel" hidden></button>
+      </div>
+      <div id="progressRow" class="row" hidden>
+        <progress id="progress" max="1" value="0"></progress>
+        <span id="progressText" class="muted"></span>
+      </div>
+      <p id="searchMsg" class="msg" hidden></p>
+    </section>
+
+    <section id="resultsPanel" class="panel" hidden>
+      <div class="panel-head">
+        <h2 data-i18n="search.results"></h2>
+        <span id="resultSummary" class="muted"></span>
+        <select id="sortMode" class="input" data-i18n-aria-label="mgr.sort">
+          <option value="work" data-i18n="search.sortWork"></option>
+          <option value="count" data-i18n="search.sortCount"></option>
+        </select>
+      </div>
+      <div id="results"></div>
+    </section>
+  </main>
+
+  <script src="../i18n.js"></script>
+  <script src="search.js"></script>
+</body>
+</html>

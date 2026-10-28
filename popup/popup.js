@@ -38,6 +38,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.close();
   });
 
+  // Opens with the work of the current tab already chosen, when it is an episode.
+  document.getElementById('openSearch').addEventListener('click', async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    let videoSn = null;
+    try {
+      const url = new URL(tab && tab.url);
+      if (url.hostname === 'ani.gamer.com.tw' && url.pathname === '/animeVideo.php') videoSn = url.searchParams.get('sn');
+    } catch (_) {}
+    const page = chrome.runtime.getURL('search/search.html') + (videoSn ? `?videoSn=${encodeURIComponent(videoSn)}` : '');
+    chrome.tabs.create({ url: page });
+    window.close();
+  });
+
   const overlayToggle = document.getElementById('overlayToggle');
   overlayToggle.checked = settings.overlayEnabled !== false;
   overlayToggle.addEventListener('change', async (e) => {
