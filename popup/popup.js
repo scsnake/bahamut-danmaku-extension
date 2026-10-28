@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     settings.uiLanguage = e.target.value;
     DmkI18n.setLanguage(settings.uiLanguage);
     DmkI18n.apply();
+    showAgeGateMemory();
     renderList(keywordList, settings.keywordBlocklist, removeKeyword);
     renderList(userList, settings.userBlocklist, removeUser);
     await saveSettings();
@@ -64,6 +65,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     settings.liveUpdate = e.target.checked;
     await saveSettings();
   });
+
+  const ageGateToggle = document.getElementById('ageGateToggle');
+  ageGateToggle.checked = settings.autoAgreeAgeGate !== false;
+  ageGateToggle.addEventListener('change', async (e) => {
+    settings.autoAgreeAgeGate = e.target.checked;
+    await saveSettings();
+    showAgeGateMemory();
+  });
+  document.getElementById('ageGateForget').addEventListener('click', async () => {
+    await chrome.storage.local.remove('ageGateConsent');
+    showAgeGateMemory();
+  });
+  showAgeGateMemory();
+
+  // The highest rating agreed to, for the account that agreed most recently
+  // (agegate.js keeps one entry per account).
+  async function showAgeGateMemory() {
+    const levelNames = {
+      1: 'popup.level1', 2: 'popup.level2', 3: 'popup.level3', 4: 'popup.level4', 5: 'popup.level5',
+    };
+    const { ageGateConsent = {} } = await chrome.storage.local.get('ageGateConsent');
+    const latest = Object.values(ageGateConsent).sort((a, b) => b.at - a.at)[0];
+    document.getElementById('ageGateMemoryText').textContent = latest && levelNames[latest.level]
+      ? DmkI18n.t('popup.ageGateRemembered', { level: DmkI18n.t(levelNames[latest.level]) })
+      : DmkI18n.t('popup.ageGateNone');
+    document.getElementById('ageGateForget').hidden = !latest;
+    document.getElementById('ageGateMemory').hidden = !ageGateToggle.checked;
+  }
 
   const densityToggle = document.getElementById('densityToggle');
   densityToggle.checked = settings.densityEnabled !== false;

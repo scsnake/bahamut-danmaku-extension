@@ -42,6 +42,7 @@ const COUNT_SAMPLE_MS = 250;
 let currentVideoSn = null;
 let bookmarks = null;
 let densityCurve = null;
+let ageGate = null;
 let videoElement = null;
 let playerElement = null;
 let overlayElement = null;
@@ -253,6 +254,11 @@ async function init() {
     getDanmaku: () => danmakuData,
     isEnabled: () => settings.densityEnabled !== false,
   });
+  ageGate = watchAgeGate({
+    player: playerElement,
+    isEnabled: () => settings.autoAgreeAgeGate !== false,
+    log: dlog,
+  });
   dlog('player', {
     area: [areaWidth, areaHeight],
     video: [videoElement.clientWidth, videoElement.clientHeight],
@@ -271,6 +277,7 @@ async function init() {
     processDanmaku();
     removeOnScreen(el => bySn.get(Number(el.dataset.sn))?.isBlocked);
     densityCurve.update();
+    ageGate.check();
     if ((prev.overlayEnabled !== false) !== overlayOn()) applyOverlayMode();
   });
 

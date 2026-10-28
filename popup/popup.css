@@ -158,6 +158,27 @@ button:hover {
   background: transparent;
 }
 
+.memo {
+  margin: 4px 0 0 24px;
+  font-size: 12px;
+  color: #888;
+}
+
+button.link-btn {
+  padding: 0;
+  margin-left: 6px;
+  background: none;
+  border-radius: 0;
+  color: #00b0f0;
+  font-size: 12px;
+  font-weight: normal;
+}
+
+button.link-btn:hover {
+  background: none;
+  text-decoration: underline;
+}
+
 .count {
   color: #888;
   font-weight: normal;

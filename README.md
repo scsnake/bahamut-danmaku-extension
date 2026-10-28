@@ -35,6 +35,7 @@ To maintain perfect video performance while evaluating thousands of comments, th
 ### 4. Extension Popup Manager
 A clean, lightweight popup UI (`popup.html`) allowing you to:
 - Toggle the AI semantic filter on or off.
+- Click 同意 on the per-episode rating notice for you (`agegate.js`, on by default), so episodes start on their own. The first time you click 同意 on a rating yourself, that rating and lower ones are agreed for you from then on, per Bahamut account (kept as a short hash of the account id); a higher rating still waits for your own click. The popup shows the remembered rating and can forget it. Age limits still follow your Bahamut account.
 - Manage your custom Keyword Blocklist.
 - Manage your User ID Blocklist.
 

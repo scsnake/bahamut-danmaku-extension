@@ -50,6 +50,19 @@
 
     <div class="setting-group">
       <label>
+        <input type="checkbox" id="ageGateToggle" aria-describedby="tip-ageGateToggle">
+        <span data-i18n="popup.ageGate"></span>
+        <button type="button" class="info" aria-describedby="tip-ageGateToggle" data-i18n-aria-label="popup.info">i</button>
+      </label>
+      <p class="memo" id="ageGateMemory" hidden>
+        <span id="ageGateMemoryText"></span>
+        <button type="button" id="ageGateForget" class="link-btn" data-i18n="popup.ageGateForget"></button>
+      </p>
+      <p class="tip" id="tip-ageGateToggle" role="tooltip" data-i18n="popup.ageGateDesc"></p>
+    </div>
+
+    <div class="setting-group">
+      <label>
         <input type="checkbox" id="aiFilterToggle" aria-describedby="tip-aiFilterToggle">
         <span data-i18n="popup.ai"></span>
         <button type="button" class="info" aria-describedby="tip-aiFilterToggle" data-i18n-aria-label="popup.info">i</button>
