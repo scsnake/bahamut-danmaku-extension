@@ -64,7 +64,6 @@ A clean, lightweight popup UI (`popup.html`) allowing you to:
 - **`density.js`**: Draws the density curve as an SVG inside the player's `.vjs-progress-holder`.
 - **`content.css`**: Hides the native comments, styles our comments like the official ones, and provides the light/dark mode UI for the contextual modal.
 - **`search/`**: The danmaku search page (`search.html`/`.js`/`.css`), an extension page that reads the subscription list, episode lists and comment lists with the Bahamut login cookie.
-- **`ROADMAP.md`**: Phases, measured facts about the official player and API, and the planned danmaku search feature.
 - **`bookmarks/`**: Scene bookmarks. `common.js` holds helpers shared by every context; `store.js` (imported by `background.js`) is the single writer to `chrome.storage.local`, which serializes updates from the page and the manager; `content-bookmarks.js`/`.css` is the in-player toolbar, panel and quick editor; `manager.html`/`.js`/`.css` is the full-page manager.
 - **`backup_danmaku.py`**: Standalone multi-versioning archival tool that tracks comment lifecycles, lyric annotations, and rolling evictions.
 

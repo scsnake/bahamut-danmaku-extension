@@ -4,7 +4,7 @@ const LOG = '[Danmaku Enhancer]';
 const DANMU_API = 'https://api.gamer.com.tw/anime/v1/danmu.php';
 
 // Renderer constants, matched to the official danmaku manager in
-// anime_player.js (see ROADMAP.md).
+// anime_player.js.
 const TIME_UNIT_MS = 200;          // official fires comments in 200 ms buckets
 const STATIC_DURATION_MS = 5000;   // top / bottom comments
 const ROLLING_UNIT_SEC = 12;       // speed = (screen width + 2 * text width) / 12 s
