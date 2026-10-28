@@ -6,9 +6,11 @@
 //
 // Viewers mark the OP for each other:
 // - "空降時間 1:30" / "空降座標 1.30" / "請空降至02:20", posted when the OP
-//   starts: the time in the text is where the OP ends. Each such comment is
-//   a vote; targets within OP_GROUP_SEC of each other count together, and
-//   the group with the most votes wins. Its earliest comment is the start.
+//   starts: the time in the text is where the OP ends (the end is put
+//   OP_JUMP_EARLY_SEC before it, so the jump lands just before the episode
+//   goes on). Each such comment is a vote; targets within OP_GROUP_SEC of
+//   each other count together, and the group with the most votes wins.
+//   Its earliest comment is the start.
 //   Targets that are not OP_MIN_SEC–OP_MAX_SEC after their comment
 //   ("空降座標24:00" as a joke, "空降 0:30" near the end) are not votes.
 // - "空降成功" / "謝謝指揮官", posted just after the jump lands: without a
@@ -47,7 +49,8 @@
 // OP_REVIEW_MAX), with their OP-related comments; the popup exports them
 // with the debug log. An episode that gets a result later is removed.
 
-const OP_DEFAULT_SEC = 90;
+const OP_DEFAULT_SEC = 88;
+const OP_JUMP_EARLY_SEC = 2;
 const OP_MIN_SEC = 20;
 // A start clue ("op君", "不跳") closer to the end than this is posted during
 // the OP, not at its start (a TV OP is about 90 s).
@@ -156,10 +159,10 @@ function findOpening(list, duration, film = false) {
         }
       }
       const targets = best.map(j => j.target).sort((a, b) => a - b);
-      const end = targets[Math.floor((targets.length - 1) / 2)];
+      const target = targets[Math.floor((targets.length - 1) / 2)];
       return {
-        start: snapStart(Math.min(...best.map(j => j.sec), startBefore(end))),
-        end,
+        start: snapStart(Math.min(...best.map(j => j.sec), startBefore(target))),
+        end: target - OP_JUMP_EARLY_SEC,
         source: 'jump',
         votes: best.length,
       };
