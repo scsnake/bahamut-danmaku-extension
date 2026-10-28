@@ -5,7 +5,7 @@ A powerful Chrome Extension designed to overhaul the native danmaku (bullet comm
 ## Core Features
 
 ### 1. Unlimited Danmaku Overlay Engine
-- **Bypass the 3000-Item Limit**: The native player caps comments at 3000, causing early comments on popular videos to be completely hidden. This extension pre-fetches the entire JSON response and streams *all* comments cleanly without limits.
+- **Same Comment List as the Official Player**: Uses the same `danmu.php` request, with your cookies, so your official keyword filters and mute list still apply. The native player has no 3000-comment display cap (it only labels counts above 3000 as "3000+"); an episode with 3001 comments renders all 3001 in both layers. Comments the *server* has already evicted are covered by the archive tool (section 5).
 - **Custom Hardware-Accelerated Engine**: Injects our own overlay inside the native `.vjs-danmu` area and hides the native comments (`.danmu-warp`), so both always cover the same area.
 - **Matches the Official Player**: Ports the official renderer — font sizes, rolling speed and duration, top/bottom comments, pixel-based placement — and follows the official settings (danmaku on/off, opacity, size, rolling/top/bottom toggles, TW/HK sources) live.
 - **Danmaku Density Curve**: A faint curve just above the progress bar shows how busy each part of the episode is, so you can spot the hot scenes before you reach them. It counts only comments that pass your filters, follows in-place episode changes, hides during ads, and can be turned off in the popup.

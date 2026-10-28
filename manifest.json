@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Bahamut Danmaku Enhancer",
   "version": "1.0.0",
-  "description": "Bypasses the 3000-item limit for Bahamut Anime Crazy danmaku and uses AI to filter spoilers and inappropriate content.",
+  "description": "Danmaku layer for Bahamut Anime Crazy that matches the official one, filters spoilers and inappropriate content with local AI, and adds scene bookmarks and a density curve.",
   "permissions": [
     "storage",
     "unlimitedStorage"
