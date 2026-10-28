@@ -1,6 +1,5 @@
 // background.js
 
-// Initialize default settings on install
 chrome.runtime.onInstalled.addListener(async () => {
   const { settings } = await chrome.storage.local.get("settings");
   if (!settings) {
@@ -15,84 +14,133 @@ chrome.runtime.onInstalled.addListener(async () => {
   }
 });
 
+const SYSTEM_PROMPT =
+  "You are a content moderator for an anime streaming platform. " +
+  "Your job is to determine if a user comment (danmaku) contains spoilers, " +
+  "inappropriate sexual intent/innuendo, or extreme toxicity. " +
+  "Reply with exactly 'BLOCK' if it contains any of these, or 'ALLOW' if it is safe. " +
+  "Do not explain your reasoning.";
+
 let aiSession = null;
+
+let aiSessionPromise = null;
 
 // Helper to initialize or get AI session
 async function getAiSession() {
   if (aiSession) return aiSession;
-  
-  // Try to use chrome.languageModel (newer) or self.aiOriginTrial.languageModel
-  const modelApi = chrome.languageModel || (self.aiOriginTrial && self.aiOriginTrial.languageModel);
-  
-  if (!modelApi) {
-    console.warn("AI Prompt API is not available.");
-    return null;
-  }
-  
-  try {
-    const capabilities = await modelApi.capabilities();
-    if (capabilities.available === 'no') {
-      console.warn("AI model is not available.");
+  if (aiSessionPromise) return await aiSessionPromise;
+
+  aiSessionPromise = (async () => {
+    const candidates = [
+      self.LanguageModel,
+      self.ai && self.ai.languageModel,
+      chrome.languageModel,
+      self.aiOriginTrial && self.aiOriginTrial.languageModel
+    ].filter(Boolean);
+
+    if (candidates.length === 0) {
+      console.warn("[Danmaku Enhancer] AI Prompt API is not available.");
       return null;
     }
-    
-    // Create session with system prompt for moderation
-    aiSession = await modelApi.create({
-      systemPrompt: "You are a content moderator for an anime streaming platform. " +
-        "Your job is to determine if a user comment (danmaku) contains spoilers, inappropriate sexual intent/innuendo, or extreme toxicity. " +
-        "Reply with exactly 'BLOCK' if it contains any of these, or 'ALLOW' if it is safe. Do not explain your reasoning."
-    });
-    return aiSession;
-  } catch (err) {
-    console.error("Failed to create AI session:", err);
+
+    for (const modelApi of candidates) {
+      try {
+        let available = true;
+        if (typeof modelApi.availability === 'function') {
+          const status = await modelApi.availability();
+          available = status !== 'no' && status !== 'unavailable';
+        } else if (typeof modelApi.capabilities === 'function') {
+          const caps = await modelApi.capabilities();
+          available = caps.available !== 'no';
+        }
+        if (!available) continue;
+
+        // Send both `initialPrompts` (current API) and `systemPrompt` (legacy);
+        // implementations ignore what they don't recognize.
+        const session = await modelApi.create({
+          initialPrompts: [{ role: 'system', content: SYSTEM_PROMPT }],
+          systemPrompt: SYSTEM_PROMPT
+        });
+        aiSession = session;
+        return session;
+      } catch (err) {
+        console.warn("[Danmaku Enhancer] AI session creation failed on candidate:", err);
+      }
+    }
     return null;
+  })();
+
+  try {
+    return await aiSessionPromise;
+  } finally {
+    aiSessionPromise = null;
   }
 }
 
-// Evaluate a single comment using AI
 async function evaluateCommentWithAi(text) {
-  const session = await getAiSession();
-  if (!session) return true; // Allow if AI is unavailable
-  
+  const base = await getAiSession();
+  if (!base) return true; // Allow if AI is unavailable.
+
+  // Clone per-call when supported so conversation history doesn't grow across
+  // classifications (each danmaku should be a stateless yes/no).
+  let session = base;
+  let cloned = false;
+  if (typeof base.clone === 'function') {
+    try {
+      session = await base.clone();
+      cloned = true;
+    } catch (_) {
+      session = base;
+    }
+  }
+
   try {
     const result = await session.prompt(`Comment: "${text}"`);
-    return !result.toUpperCase().includes('BLOCK');
+    return !String(result).toUpperCase().includes('BLOCK');
   } catch (err) {
-    console.error("AI Evaluation failed:", err);
-    return true; // Fallback to allowing
+    console.error("[Danmaku Enhancer] AI Evaluation failed:", err);
+    return true;
+  } finally {
+    if (cloned && typeof session.destroy === 'function') {
+      try { session.destroy(); } catch (_) {}
+    }
   }
 }
 
-// Message Router
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'FETCH_DANMAKU') {
     (async () => {
       try {
-        const url = `https://api.gamer.com.tw/anime/v1/danmu.php?videoSn=${message.videoSn}&geo=TW%2CHK`;
-        const res = await fetch(url);
+        const url = `https://api.gamer.com.tw/anime/v1/danmu.php?videoSn=${encodeURIComponent(message.videoSn)}&geo=TW%2CHK`;
+        // credentials: 'include' so the request carries the user's gamer.com.tw
+        // cookies (needed for personalized filter state on the server side).
+        const res = await fetch(url, { credentials: 'include' });
         const data = await res.json();
-        sendResponse({ success: true, data: data });
+        sendResponse({ success: true, data });
       } catch (err) {
         sendResponse({ success: false, error: err.message });
       }
     })();
-    return true; // Keep channel open
+    return true;
   }
-  
+
   if (message.type === 'AI_FILTER_BATCH') {
     (async () => {
-      const results = [];
-      for (const danmaku of message.batch) {
-        // Only evaluate if text exists and is long enough to warrant AI check (heuristic)
-        if (danmaku.text && danmaku.text.length > 2) {
-          const isAllowed = await evaluateCommentWithAi(danmaku.text);
-          results.push({ sn: danmaku.sn, allowed: isAllowed });
-        } else {
-          results.push({ sn: danmaku.sn, allowed: true });
-        }
+      try {
+        // Evaluate in parallel — cloned sessions in evaluateCommentWithAi
+        // keep state clean.
+        const results = await Promise.all(message.batch.map(async (danmaku) => {
+          if (!danmaku.text || danmaku.text.length <= 2) {
+            return { sn: danmaku.sn, allowed: true };
+          }
+          const allowed = await evaluateCommentWithAi(danmaku.text);
+          return { sn: danmaku.sn, allowed };
+        }));
+        sendResponse({ success: true, results });
+      } catch (err) {
+        sendResponse({ success: false, error: err.message });
       }
-      sendResponse({ success: true, results });
     })();
-    return true; // Keep channel open
+    return true;
   }
 });
