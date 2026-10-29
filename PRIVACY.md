@@ -42,7 +42,7 @@ The extension keeps this data in `chrome.storage.local`. It does not send it any
 
 - **Settings**: your choices in the popup and on the settings page, your keyword and user filters, and the interface language.
 - **Scene bookmarks**: the episode, time, title, note and tags that you enter, and a small thumbnail image of that moment.
-- **Age-rating memory**: the highest rating level you agreed to yourself, by your own click, on Bahamut's rating notice. Nothing is agreed for you before that, nothing above 輔15 is ever agreed for you (限制級 always waits for your own click), and age limits stay with your Bahamut account. It is kept per Bahamut account, under a short one-way hash of the account ID (read from the `BAHAID` cookie), not the account ID itself. The settings page can clear it.
+- **Age-rating memory**: the highest rating level (from General up to Restricted 18+) that you manually agreed to yourself, by your own click, on Bahamut's per-episode rating reminder, so that rating and all lower ratings (for example, agreeing to 18+ also covers 15+ and below) are confirmed for you on later episodes. Nothing is ever agreed for you before your own manual click, and account-level age verification stays with your Bahamut account. It is kept per Bahamut account, under a short one-way hash of the account ID (read from the `BAHAID` cookie), not the account ID itself. The settings page can clear it.
 - **OP report agreement**: whether you agreed to send OP reports.
 - **Debug log** (newest 5000 entries): by default, only errors (for example a failed load or a failed report), with the episode number and video time. With "Debug mode" (a setting for development, off by default) it also keeps technical events, for example page and episode loads, comment counts, ad start and end, seeks, playback stalls, setting changes and OP guesses. It can hold episode numbers and page addresses on ani.gamer.com.tw. It does not hold your account or cookies.
 - **OP review list** (`opSkipReview`, newest 300 episodes, only with "Debug mode" on): episodes where no OP could be guessed, with the episode number, title, length, and up to 30 public comments about the OP from that episode.
@@ -65,7 +65,7 @@ If this policy changes, the new version is published with the extension, with a 
 
 ## Contact
 
-Questions about this policy: open an issue at <https://github.com/scsnake/bahamut-danmaku-extension/issues>.
+Questions about this policy: open an issue at [https://github.com/scsnake/bahamut-danmaku-extension/issues](https://github.com/scsnake/bahamut-danmaku-extension/issues).
 
 ---
 
@@ -77,6 +77,7 @@ Questions about this policy: open an issue at <https://github.com/scsnake/bahamu
 - 只有在你按下「OP 不對」回報時，才會把資料送給開發者；第一次回報前會先列出送出的內容並請你同意，可隨時在設定頁撤回同意。
 - 回報只包含：本集編號（sn）、擴充功能的 OP 推測、你按下時的播放時間與影片長度、你在這一集最近幾次跳轉的時間點、擴充功能版本。不含帳號、暱稱、Cookie、彈幕、IP 位址或其他網址。
 - 回報以 HTTPS 送到 Google Apps Script，寫入開發者的 Google 試算表；只由開發者閱讀，只用來改進 OP 偵測，不出售、不用於廣告。
+- 分級同意紀錄只記住你在播放前分級提示上親自按過「同意」的最高分級（含限制級 18+，同意較高分級即涵蓋該分級與更低分級，未按過更高分級前絕不代按，也不會繞過巴哈帳號的年齡驗證），以巴哈帳號 ID（`BAHAID` Cookie）的單向短雜湊區分帳號，不儲存帳號本身，也不會送出；可在設定頁清除。
 - 除錯紀錄預設只記錄錯誤；完整紀錄與 OP 待檢查清單只在開啟「偵錯模式」（開發用，預設關閉）時記錄。這些資料與音訊特徵只存在本機，只有你按「匯出」時才會存成檔案。
 - 「以音訊比對 OP」只在本機記錄每秒幾個音量與音色數值（不錄音），用來找出各集重複的 OP，不會送出。
 - 目前版本未啟用 AI 過濾（尚未測試）。日後啟用時使用 Chrome 內建、在你裝置上執行的模型，彈幕不會因此被送出。

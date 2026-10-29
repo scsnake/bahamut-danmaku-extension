@@ -42,9 +42,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
     const { ageGateConsent = {} } = await chrome.storage.local.get('ageGateConsent');
     const latest = Object.values(ageGateConsent).sort((a, b) => b.at - a.at)[0];
-    // agegate.js never agrees above 輔15 (AGE_AUTO_MAX), also for a level
-    // stored before that cap.
-    if (latest) latest.level = Math.min(latest.level, 4);
     document.getElementById('ageGateMemoryText').textContent = latest && levelNames[latest.level]
       ? DmkI18n.t('popup.ageGateRemembered', { level: DmkI18n.t(levelNames[latest.level]) })
       : DmkI18n.t('popup.ageGateNone');
