@@ -16,7 +16,7 @@ This policy covers the Chrome extension "Danmaku Enhancer for AniGamer (Unoffici
 
 ### 1. Requests to ani.gamer.com.tw and api.gamer.com.tw
 
-The extension loads danmaku (comments), episode lists and work information from Bahamut, the same way the official player does. These requests go only to Bahamut and carry your normal Bahamut login cookies. One exception: when your official keyword filters would hide the comments used to find the OP (for example a filtered "空降"), the extension loads the episode's comment list once more without cookies, only to find the OP. It does not show those comments. The danmaku search page can also read your subscribed works and your watch history from Bahamut, to let you pick works to search. The extension shows this data on your screen and does not send it anywhere else.
+The extension loads danmaku (comments), episode lists and work information from Bahamut, the same way the official player does. These requests go only to Bahamut and carry your normal Bahamut login cookies. One exception: when your official keyword filters would hide the comments used to find the OP (for example a filtered "空降") and Bahamut has left those comments out of your list, the extension loads the episode's comment list once more without cookies, only to find the OP. It does not show those comments. The danmaku search page can also read your subscribed works and your watch history from Bahamut, to let you pick works to search. The extension shows this data on your screen and does not send it anywhere else.
 
 ### 2. OP reports (only when you click "OP 不對")
 

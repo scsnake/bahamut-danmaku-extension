@@ -7,7 +7,7 @@ A powerful Chrome Extension designed to overhaul the native danmaku (bullet comm
 ## Core Features
 
 ### 1. Unlimited Danmaku Overlay Engine
-- **Same Comment List as the Official Player**: Uses the same `danmu.php` request, with your cookies, so your official keyword filters and mute list still apply. The native player has no 3000-comment display cap (it only labels counts above 3000 as "3000+"); an episode with 3001 comments renders all 3001 in both layers.
+- **Same Comment List as the Official Player**: Uses the same `danmu.php` request, with your cookies, so any filtering Bahamut does for your account still applies. Your official keyword filters also apply in the layer itself (see Webpage Integration). The native player has no 3000-comment display cap (it only labels counts above 3000 as "3000+"); an episode with 3001 comments renders all 3001 in both layers.
 - **Custom Hardware-Accelerated Engine**: Injects our own overlay inside the native `.vjs-danmu` area and hides the native comments (`.danmu-warp`), so both always cover the same area.
 - **Matches the Official Player**: Ports the official renderer — font sizes, rolling speed and duration, top/bottom comments, pixel-based placement — and follows the official settings (danmaku on/off, opacity, size, rolling/top/bottom toggles, TW/HK sources) live.
 - **Live Updates**: While you watch, the list is fetched again every 2 minutes, so comments other viewers just sent show up. A comment you send shows within a few seconds (our layer hides the official one, which would show it at once). Can be turned off in the popup.
