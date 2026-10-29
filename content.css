@@ -115,6 +115,33 @@
   display: none;
 }
 
+/* "Forward 1:23" (opskip.js), when no OP is found: lower left, at the same
+   height as the skip button. */
+.video-js .dmk-op-forward {
+  position: absolute;
+  left: 16px;
+  bottom: 88px;
+  z-index: 10000;
+  padding: 6px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  color: rgba(255, 255, 255, 0.9);
+  font: 600 14px/1.4 -apple-system, BlinkMacSystemFont, "PingFang TC", "Microsoft JhengHei", sans-serif;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.video-js .dmk-op-forward:hover {
+  background: rgba(0, 0, 0, 0.6);
+  border-color: #fff;
+  color: #fff;
+}
+
+.video-js .dmk-op-forward[hidden] {
+  display: none;
+}
+
 /* Wrong-OP report (opreport.js): a small link above the skip button. */
 .video-js .dmk-op-report {
   position: absolute;

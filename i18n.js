@@ -122,6 +122,8 @@ const DmkI18n = (() => {
       'player.toggleOffTitle': '官方彈幕（點擊切換為增強彈幕層）',
       'player.skipOp': '跳過 OP ⏭',
       'player.skipOpTitle': '跳到 {time}（依彈幕推測的 OP 結尾）',
+      'player.forwardOp': '快轉 {time} ⏩',
+      'player.forwardOpTitle': '彈幕中找不到 OP 位置，往後跳一段',
 
       'report.button': '⚑ OP 不對',
       'report.buttonDone': '已回報 ✓',
@@ -330,6 +332,8 @@ const DmkI18n = (() => {
       'player.toggleOffTitle': 'Official danmaku (click for the enhanced layer)',
       'player.skipOp': 'Skip OP ⏭',
       'player.skipOpTitle': 'Jump to {time} (the OP end, guessed from the danmaku)',
+      'player.forwardOp': 'Forward {time} ⏩',
+      'player.forwardOpTitle': 'No OP position found in the danmaku; jump ahead',
 
       'report.button': '⚑ Wrong OP',
       'report.buttonDone': 'Reported ✓',

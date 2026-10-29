@@ -34,6 +34,7 @@ const OP_REPORT_HINT_BAR = 0.4;        // left share of the progress bar
 const OP_REPORT_HINT_CORNER = 0.2;     // lower-left share of the player
 const OP_REPORT_HINT_BAR_PAD_PX = 8;   // above and below the bar
 const OP_REPORT_HINT_LIFT_PX = 56;     // above the bar or the pointer
+const OP_REPORT_HINT_GAP_PX = 8;       // above the forward button (opskip.js)
 const OP_REPORT_HINT_DWELL_MS = 300;
 const OP_REPORT_HINT_HIDE_MS = 1500;
 
@@ -161,12 +162,23 @@ function initOpReport({ video, player, getVideoSn, getResult, isEnabled, log }) 
     }
   }
 
-  // Centred on the pointer, inside the player.
+  // Centred on the pointer, inside the player, and above the forward button
+  // (opskip.js), which shows in the same corner.
   function placeHint() {
     const p = player.getBoundingClientRect();
     const w = hint.offsetWidth;
+    const h = hint.offsetHeight;
     const left = Math.max(8, Math.min(hintAt.x - p.left - w / 2, p.width - w - 8));
-    const top = Math.max(8, hintAt.y - p.top - OP_REPORT_HINT_LIFT_PX);
+    let top = Math.max(8, hintAt.y - p.top - OP_REPORT_HINT_LIFT_PX);
+    const forward = player.querySelector('.dmk-op-forward:not([hidden])');
+    if (forward) {
+      const f = forward.getBoundingClientRect();
+      const fl = f.left - p.left;
+      const ft = f.top - p.top;
+      if (left < fl + f.width && left + w > fl && top < ft + f.height && top + h > ft) {
+        top = Math.max(8, ft - h - OP_REPORT_HINT_GAP_PX);
+      }
+    }
     hint.style.left = `${left}px`;
     hint.style.top = `${top}px`;
   }

@@ -2,6 +2,8 @@
 //
 // Guesses where the opening song (OP) is from the danmaku, marks its start
 // and end on the density curve, and shows a "skip OP" button while it plays.
+// When the danmaku give no clue at all, a "forward 1:23" button shows instead
+// while the pointer is in the player's lower-left corner (OP_FORWARD_*).
 // Shares the density curve's setting (settings.densityEnabled).
 //
 // Viewers mark the OP for each other:
@@ -69,6 +71,11 @@ const OP_FILM_MIN_SEC = 45 * 60;
 const OP_FILM_TITLE_RE = /劇場版|剧场版|電影版|电影版|movie/i;
 // Same limit as the density curve: shorter videos are pre-roll ads.
 const OP_MIN_VIDEO_SEC = 60;
+// No clue: jump this far ahead. The corner (px from the player's left and
+// bottom edges) that shows the button, only in the first OP_LATEST_FRACTION.
+const OP_FORWARD_SEC = 83;
+const OP_FORWARD_ZONE_W = 240;
+const OP_FORWARD_ZONE_H = 150;
 // Matched after NFKC, so full-width digits, letters and "：" match too.
 const OP_JUMP_RE = /空降\s*(?:時間|时间|座標|坐標|坐标|座标|點|点)?\s*(?:至|到)?\s*:?\s*(\d{1,2})\s*[:.]\s*([0-5]\d)(?!\d)/;
 const OP_LANDED_RE = /空降成功|[謝谢]{2}指[揮挥]官/;
@@ -249,6 +256,33 @@ function initOpSkip({ video, player, getDanmaku, getVideoSn, getAudio, isEnabled
     opFocusPlayer(player);
   });
 
+  const forward = document.createElement('button');
+  forward.type = 'button';
+  forward.className = 'dmk-op-forward';
+  forward.hidden = true;
+  forward.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const to = Math.min(video.currentTime + OP_FORWARD_SEC, video.duration - 1);
+    log('opForward', { from: Math.round(video.currentTime), to: Math.round(to) });
+    video.currentTime = to;
+    forward.hidden = true;
+    opFocusPlayer(player);
+  });
+  // Pointer moves on the player, not a hover area over the video, so clicks
+  // in the corner still reach the player.
+  let inCorner = false;
+  player.addEventListener('mousemove', (e) => {
+    const r = player.getBoundingClientRect();
+    const now = e.clientX - r.left < OP_FORWARD_ZONE_W && r.bottom - e.clientY < OP_FORWARD_ZONE_H;
+    if (now === inCorner) return;
+    inCorner = now;
+    sync();
+  });
+  player.addEventListener('mouseleave', () => {
+    inCorner = false;
+    sync();
+  });
+
   function update() {
     const duration = video.duration;
     const episode = Number.isFinite(duration) && duration >= OP_MIN_VIDEO_SEC;
@@ -275,15 +309,22 @@ function initOpSkip({ video, player, getDanmaku, getVideoSn, getAudio, isEnabled
       button.textContent = DmkI18n.t('player.skipOp');
       button.title = DmkI18n.t('player.skipOpTitle', { time: formatOpTime(opening.end) });
     }
+    forward.textContent = DmkI18n.t('player.forwardOp', { time: formatOpTime(OP_FORWARD_SEC) });
+    forward.title = DmkI18n.t('player.forwardOpTitle');
     if (button.parentNode !== player) player.appendChild(button);
+    if (forward.parentNode !== player) player.appendChild(forward);
     sync();
   }
 
-  // Shows the button only inside the OP, outside ads.
+  // Shows the skip button only inside the OP, and the forward button only
+  // without any clue, in the corner, while the controls show; never in ads.
   function sync() {
     const t = video.currentTime;
-    button.hidden = !(isEnabled() && opening && t >= opening.start && t < opening.end - 1 &&
-      !player.classList.contains('vjs-ad-playing'));
+    const ad = player.classList.contains('vjs-ad-playing');
+    button.hidden = !(isEnabled() && opening && t >= opening.start && t < opening.end - 1 && !ad);
+    forward.hidden = !(isEnabled() && inCorner && found && found.source === 'unknown' &&
+      t < video.duration * OP_LATEST_FRACTION && !ad &&
+      !player.classList.contains('vjs-user-inactive'));
   }
 
   video.addEventListener('timeupdate', sync);
