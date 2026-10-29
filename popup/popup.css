@@ -215,3 +215,13 @@ button.full-width {
   border-radius: 4px;
   padding: 8px 12px;
 }
+
+button.secondary {
+  background: transparent;
+  border: 1px solid #00b0f0;
+  color: #00b0f0;
+}
+
+button.secondary:hover {
+  background: rgba(0, 176, 240, 0.12);
+}

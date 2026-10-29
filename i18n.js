@@ -2,13 +2,13 @@
 //
 // Interface text in Traditional Chinese (Taiwan) and English. Most viewers
 // of ani.gamer.com.tw read zh-TW, so it is the default whatever the browser
-// language; the popup can switch to English (settings.uiLanguage).
+// language; the settings page can switch to English (settings.uiLanguage).
 //
-// Loaded as a classic script in the content scripts, the popup and the
-// bookmark manager, so it exposes one global. Call load() (or setLanguage()
-// with the settings already read) before building any UI, then t(key, vars)
-// for text and apply(root) for static pages marked with data-i18n*
-// attributes.
+// Loaded as a classic script in the content scripts, the popup, the
+// settings page and the bookmark manager, so it exposes one global. Call
+// load() (or setLanguage() with the settings already read) before building
+// any UI, then t(key, vars) for text and apply(root) for static pages marked
+// with data-i18n* attributes.
 //
 // A message is a string with {name} placeholders, or a function of the vars
 // (for English plurals). Values marked "html" are set with innerHTML; they
@@ -51,6 +51,19 @@ const DmkI18n = (() => {
       'popup.opReportConsent': '已同意送出 OP 回報。',
       'popup.opReportWithdraw': '撤回同意',
       'popup.privacy': '隱私權政策',
+      'popup.allSettings': '所有設定 ⚙',
+      'options.title': '設定',
+      'options.watching': '觀看時',
+      'options.watchingHint': '這幾項也可以在工具列的擴充功能視窗中切換。',
+      'options.general': '一般',
+      'options.player': '播放器',
+      'options.filters': '封鎖',
+      'options.filtersHint': '符合的彈幕不會顯示，也不計入密度曲線。官方播放器設定中的關鍵字也會套用。',
+      'options.empty': '（無）',
+      'options.opReport': 'OP 回報',
+      'options.opReportNotAgreed': '尚未同意。第一次回報時，會先列出要送出的資料並詢問你。',
+      'options.debug': '偵錯（開發用）',
+      'options.version': '版本 {version}',
       'popup.densityDesc': '進度條上方的淡色曲線標示彈幕最密集的段落。依彈幕（「空降 1:30」、「空降成功」、「謝謝指揮官」、「op君」、「開頭OP」、「不跳OP」）與歌詞彈幕推測 OP 的起訖，在曲線上以 ◣ ◢ 標出；大家說「op君陣亡」的集數則不標示。播放到 OP 時，右下角會出現「跳過 OP」按鈕；找不到 OP 時，開頭會在左下角顯示「快轉 1:23」按鈕。',
       'popup.ageGate': '自動同意分級提示',
       'popup.ageGateDesc': '開啟後，你第一次自己按「同意」的分級會被記住。之後同一個巴哈帳號遇到這個分級或更低的分級，會自動同意並直接播放。較高的分級仍要你自己按一次。年齡限制仍依帳號設定。',
@@ -132,7 +145,7 @@ const DmkI18n = (() => {
       'report.buttonTitle': '一鍵回報：這一集的 OP 推測不對',
       'report.title': '回報 OP 推測錯誤',
       'report.notice': '按「同意並回報」後，本擴充功能會以 HTTPS 將以下資料送到開發者的 Google 試算表：本集編號（sn={sn}）、目前的 OP 推測、你按下時的播放時間與影片長度、你在這一集最近 5 次跳轉的時間點，以及擴充功能版本。不會送出你的帳號、暱稱、Cookie、彈幕內容或其他網址。回報只由開發者閱讀，只用來改進 OP 偵測。Google 會依其隱私權政策處理連線資料（例如 IP 位址）。',
-      'report.consentNote': '同意後，之後按「OP 不對」會直接送出，不再詢問。你可以在擴充功能的彈出視窗撤回同意。',
+      'report.consentNote': '同意後，之後按「OP 不對」會直接送出，不再詢問。你可以在擴充功能的設定頁撤回同意。',
       'report.privacy': '隱私權政策',
       'report.cancel': '取消',
       'report.agree': '同意並回報',
@@ -263,6 +276,19 @@ const DmkI18n = (() => {
       'popup.opReportConsent': 'You agreed to send OP reports.',
       'popup.opReportWithdraw': 'Take back',
       'popup.privacy': 'Privacy policy',
+      'popup.allSettings': 'All settings ⚙',
+      'options.title': 'Settings',
+      'options.watching': 'While watching',
+      'options.watchingHint': 'These are also in the toolbar popup.',
+      'options.general': 'General',
+      'options.player': 'Player',
+      'options.filters': 'Blocking',
+      'options.filtersHint': 'Matching comments are hidden and not counted in the density curve. The keywords in the official player settings apply too.',
+      'options.empty': '(none)',
+      'options.opReport': 'OP reports',
+      'options.opReportNotAgreed': 'Not agreed yet. The first report lists the data it sends and asks you first.',
+      'options.debug': 'Debugging (for development)',
+      'options.version': 'Version {version}',
       'popup.densityDesc': 'A faint curve above the progress bar shows where comments are busiest. The OP start and end are guessed from comments such as 「空降 1:30」, 「空降成功」, 「謝謝指揮官」, 「op君」, 「開頭OP」 and 「不跳OP」, and from lyric comments, and marked with ◣ ◢ on the curve. Episodes where viewers say 「op君陣亡」 (no OP) get no marks. While the OP plays, a Skip OP button shows at the lower right. When no OP is found, a "Forward 1:23" button shows at the lower left near the start.',
       'popup.ageGate': 'Auto-agree to the rating notice',
       'popup.ageGateDesc': 'When on, the first rating you agree to yourself is remembered. From then on, that rating and lower ones are agreed for you on the same Bahamut account, and the video starts on its own. A higher rating still needs your own click once. Age limits still follow your account.',
@@ -344,7 +370,7 @@ const DmkI18n = (() => {
       'report.buttonTitle': 'Report with one click: the OP guess for this episode is wrong',
       'report.title': 'Report a wrong OP guess',
       'report.notice': 'When you click "Agree and report", this extension sends these items over HTTPS to the developer\'s Google Sheet: the episode number (sn={sn}), the current OP guess, the video time when you clicked and the video length, your last 5 seeks in this episode, and the extension version. It does not send your account, nickname, cookies, comments or any other URL. Only the developer reads the reports, and only to improve OP detection. Google handles the connection data (such as your IP address) under its privacy policy.',
-      'report.consentNote': 'After you agree, "Wrong OP" sends at once without asking again. You can take back your agreement in the extension popup.',
+      'report.consentNote': 'After you agree, "Wrong OP" sends at once without asking again. You can take back your agreement on the extension settings page.',
       'report.privacy': 'Privacy policy',
       'report.cancel': 'Cancel',
       'report.agree': 'Agree and report',

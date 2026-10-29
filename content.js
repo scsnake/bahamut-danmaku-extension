@@ -11,7 +11,7 @@ const ROLLING_UNIT_SEC = 12;       // speed = (screen width + 2 * text width) / 
 const FONT_SIZES = { 0: 16, 1: 24, 2: 28 };
 const MODES = { 0: 'rolling', 1: 'top', 2: 'bottom' };
 // The AI filter (Gemini Nano) is not tested enough to ship: while false it
-// never runs, whatever the stored setting, and the popup hides its switch.
+// never runs, whatever the stored setting, and the settings page hides its switch.
 const AI_FILTER_READY = false;
 // Comments still waiting for the AI this long after their time are dropped.
 const GRACE_TENTHS = 30;
@@ -91,7 +91,7 @@ const ownFetchStarts = [];
 const activeAnimations = new Set();
 
 // Debug log. Entries go to background.js, which keeps the newest ones in
-// chrome.storage.local; the popup exports them as a JSON file.
+// chrome.storage.local; the settings page exports them as a JSON file.
 const debugBuffer = [];
 const stats = newStats();
 let frameStats = newFrameStats();

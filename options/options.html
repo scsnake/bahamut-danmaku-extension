@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Danmaku Enhancer Settings</title>
+  <link rel="stylesheet" href="../popup/popup.css">
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <main class="container">
+    <h1><span data-i18n="appName"></span> <span class="subtitle" data-i18n="options.title"></span></h1>
+
+    <section>
+      <h2 data-i18n="options.watching"></h2>
+      <p class="hint" data-i18n="options.watchingHint"></p>
+      <div class="setting-group">
+        <label>
+          <input type="checkbox" id="overlayToggle" aria-describedby="tip-overlayToggle">
+          <span data-i18n="popup.overlay"></span>
+        </label>
+        <p class="tip" id="tip-overlayToggle" data-i18n="popup.overlayDesc"></p>
+      </div>
+      <div class="setting-group">
+        <label>
+          <input type="checkbox" id="liveToggle" aria-describedby="tip-liveToggle">
+          <span data-i18n="popup.live"></span>
+        </label>
+        <p class="tip" id="tip-liveToggle" data-i18n="popup.liveDesc"></p>
+      </div>
+      <div class="setting-group">
+        <label>
+          <input type="checkbox" id="infoModeToggle" aria-describedby="tip-infoModeToggle">
+          <span data-i18n="popup.infoMode"></span>
+        </label>
+        <p class="tip" id="tip-infoModeToggle" data-i18n="popup.infoModeDesc"></p>
+      </div>
+      <div class="setting-group">
+        <label>
+          <input type="checkbox" id="densityToggle" aria-describedby="tip-densityToggle">
+          <span data-i18n="popup.density"></span>
+        </label>
+        <p class="tip" id="tip-densityToggle" data-i18n="popup.densityDesc"></p>
+      </div>
+    </section>
+
+    <section>
+      <h2 data-i18n="options.general"></h2>
+      <div class="setting-group">
+        <label class="select-row">
+          <span data-i18n="popup.language"></span>
+          <!-- Each language is named in itself, so the labels are not translated. -->
+          <select id="uiLanguage" aria-describedby="tip-uiLanguage">
+            <option value="zh-TW">繁體中文</option>
+            <option value="en">English</option>
+          </select>
+        </label>
+        <p class="tip" id="tip-uiLanguage" data-i18n="popup.languageDesc"></p>
+      </div>
+    </section>
+
+    <section>
+      <h2 data-i18n="options.player"></h2>
+      <div class="setting-group">
+        <label>
+          <input type="checkbox" id="opAudioToggle" aria-describedby="tip-opAudioToggle">
+          <span data-i18n="popup.opAudio"></span>
+        </label>
+        <p class="tip" id="tip-opAudioToggle" data-i18n="popup.opAudioDesc"></p>
+      </div>
+      <div class="setting-group">
+        <label>
+          <input type="checkbox" id="ageGateToggle" aria-describedby="tip-ageGateToggle">
+          <span data-i18n="popup.ageGate"></span>
+        </label>
+        <p class="tip" id="tip-ageGateToggle" data-i18n="popup.ageGateDesc"></p>
+        <p class="memo" id="ageGateMemory" hidden>
+          <span id="ageGateMemoryText"></span>
+          <button type="button" id="ageGateForget" class="link-btn" data-i18n="popup.ageGateForget"></button>
+        </p>
+      </div>
+    </section>
+
+    <section>
+      <h2 data-i18n="options.filters"></h2>
+      <p class="hint" data-i18n="options.filtersHint"></p>
+      <!-- Hidden until the AI filter is tested; see AI_FILTER_READY in content.js. -->
+      <div class="setting-group" hidden>
+        <label>
+          <input type="checkbox" id="aiFilterToggle" aria-describedby="tip-aiFilterToggle">
+          <span data-i18n="popup.ai"></span>
+        </label>
+        <p class="tip" id="tip-aiFilterToggle" data-i18n="popup.aiDesc"></p>
+      </div>
+      <div class="lists">
+        <div class="setting-group">
+          <h3 data-i18n="popup.keywords"></h3>
+          <form class="input-group" id="keywordForm">
+            <input type="text" id="newKeyword" data-i18n-placeholder="popup.keywordPlaceholder">
+            <button type="submit" data-i18n="add"></button>
+          </form>
+          <ul id="keywordList" class="block-list"></ul>
+        </div>
+        <div class="setting-group">
+          <h3 data-i18n="popup.users"></h3>
+          <form class="input-group" id="userForm">
+            <input type="text" id="newUser" data-i18n-placeholder="popup.userPlaceholder">
+            <button type="submit" data-i18n="add"></button>
+          </form>
+          <ul id="userList" class="block-list"></ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="opReportSection" hidden>
+      <h2 data-i18n="options.opReport"></h2>
+      <p class="memo" id="opReportAgreed" hidden>
+        <span data-i18n="popup.opReportConsent"></span>
+        <button type="button" id="opReportWithdraw" class="link-btn" data-i18n="popup.opReportWithdraw"></button>
+      </p>
+      <p class="memo" id="opReportNotAgreed" hidden data-i18n="options.opReportNotAgreed"></p>
+    </section>
+
+    <section>
+      <h2><span data-i18n="options.debug"></span> <span id="debugCount" class="count"></span></h2>
+      <div class="setting-group">
+        <div class="buttons">
+          <button type="button" id="exportLog" data-i18n="export"></button>
+          <button type="button" id="clearLog" data-i18n="clear"></button>
+        </div>
+      </div>
+      <div class="setting-group">
+        <label>
+          <input type="checkbox" id="debugModeToggle" aria-describedby="tip-debugModeToggle">
+          <span data-i18n="popup.debugMode"></span>
+        </label>
+        <p class="tip" id="tip-debugModeToggle" data-i18n="popup.debugModeDesc"></p>
+      </div>
+      <div class="setting-group">
+        <label>
+          <input type="checkbox" id="audioProbeToggle" aria-describedby="tip-audioProbeToggle">
+          <span data-i18n="popup.audioProbe"></span>
+        </label>
+        <p class="tip" id="tip-audioProbeToggle" data-i18n="popup.audioProbeDesc"></p>
+      </div>
+    </section>
+
+    <footer class="hint">
+      <button type="button" id="openPrivacy" class="link-btn" data-i18n="popup.privacy"></button>
+      <span id="version"></span>
+    </footer>
+  </main>
+  <script src="../i18n.js"></script>
+  <script src="settings-ui.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

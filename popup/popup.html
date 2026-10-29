@@ -10,18 +10,6 @@
     <h2 data-i18n="appName"></h2>
 
     <div class="setting-group">
-      <label class="select-row">
-        <span><span data-i18n="popup.language"></span> <button type="button" class="info" aria-describedby="tip-uiLanguage" data-i18n-aria-label="popup.info">i</button></span>
-        <!-- Each language is named in itself, so the labels are not translated. -->
-        <select id="uiLanguage" aria-describedby="tip-uiLanguage">
-          <option value="zh-TW">繁體中文</option>
-          <option value="en">English</option>
-        </select>
-      </label>
-      <p class="tip" id="tip-uiLanguage" role="tooltip" data-i18n="popup.languageDesc"></p>
-    </div>
-
-    <div class="setting-group">
       <label>
         <input type="checkbox" id="overlayToggle" aria-describedby="tip-overlayToggle">
         <span data-i18n="popup.overlay"></span>
@@ -60,43 +48,7 @@
           <button type="button" id="opReport" class="link-btn" data-i18n="popup.opReport"></button>
           <span id="opReportNote" hidden data-i18n="popup.opReportNoPage"></span>
         </p>
-        <p class="memo" id="opReportConsent" hidden>
-          <span data-i18n="popup.opReportConsent"></span>
-          <button type="button" id="opReportWithdraw" class="link-btn" data-i18n="popup.opReportWithdraw"></button>
-        </p>
       </div>
-    </div>
-
-    <div class="setting-group">
-      <label>
-        <input type="checkbox" id="opAudioToggle" aria-describedby="tip-opAudioToggle">
-        <span data-i18n="popup.opAudio"></span>
-        <button type="button" class="info" aria-describedby="tip-opAudioToggle" data-i18n-aria-label="popup.info">i</button>
-      </label>
-      <p class="tip" id="tip-opAudioToggle" role="tooltip" data-i18n="popup.opAudioDesc"></p>
-    </div>
-
-    <div class="setting-group">
-      <label>
-        <input type="checkbox" id="ageGateToggle" aria-describedby="tip-ageGateToggle">
-        <span data-i18n="popup.ageGate"></span>
-        <button type="button" class="info" aria-describedby="tip-ageGateToggle" data-i18n-aria-label="popup.info">i</button>
-      </label>
-      <p class="memo" id="ageGateMemory" hidden>
-        <span id="ageGateMemoryText"></span>
-        <button type="button" id="ageGateForget" class="link-btn" data-i18n="popup.ageGateForget"></button>
-      </p>
-      <p class="tip" id="tip-ageGateToggle" role="tooltip" data-i18n="popup.ageGateDesc"></p>
-    </div>
-
-    <!-- Hidden until the AI filter is tested; see AI_FILTER_READY in content.js. -->
-    <div class="setting-group" hidden>
-      <label>
-        <input type="checkbox" id="aiFilterToggle" aria-describedby="tip-aiFilterToggle">
-        <span data-i18n="popup.ai"></span>
-        <button type="button" class="info" aria-describedby="tip-aiFilterToggle" data-i18n-aria-label="popup.info">i</button>
-      </label>
-      <p class="tip" id="tip-aiFilterToggle" role="tooltip" data-i18n="popup.aiDesc"></p>
     </div>
 
     <div class="setting-group">
@@ -111,47 +63,10 @@
       <button id="openSearch" aria-describedby="tip-openSearch" class="full-width" data-i18n="popup.openSearch"></button>
     </div>
 
-    <div class="setting-group">
-      <h3 data-i18n="popup.keywords"></h3>
-      <div class="input-group">
-        <input type="text" id="newKeyword" data-i18n-placeholder="popup.keywordPlaceholder">
-        <button id="addKeyword" data-i18n="add"></button>
-      </div>
-      <ul id="keywordList" class="block-list"></ul>
-    </div>
-
-    <div class="setting-group">
-      <h3 data-i18n="popup.users"></h3>
-      <div class="input-group">
-        <input type="text" id="newUser" data-i18n-placeholder="popup.userPlaceholder">
-        <button id="addUser" data-i18n="add"></button>
-      </div>
-      <ul id="userList" class="block-list"></ul>
-    </div>
-
-    <div class="setting-group">
-      <h3><span data-i18n="popup.debugLog"></span> <span id="debugCount" class="count"></span></h3>
-      <div class="input-group">
-        <button id="exportLog" data-i18n="export"></button>
-        <button id="clearLog" data-i18n="clear"></button>
-      </div>
-      <label class="probe">
-        <input type="checkbox" id="debugModeToggle" aria-describedby="tip-debugModeToggle">
-        <span data-i18n="popup.debugMode"></span>
-        <button type="button" class="info" aria-describedby="tip-debugModeToggle" data-i18n-aria-label="popup.info">i</button>
-      </label>
-      <p class="tip" id="tip-debugModeToggle" role="tooltip" data-i18n="popup.debugModeDesc"></p>
-      <label class="probe">
-        <input type="checkbox" id="audioProbeToggle" aria-describedby="tip-audioProbeToggle">
-        <span data-i18n="popup.audioProbe"></span>
-        <button type="button" class="info" aria-describedby="tip-audioProbeToggle" data-i18n-aria-label="popup.info">i</button>
-      </label>
-      <p class="tip" id="tip-audioProbeToggle" role="tooltip" data-i18n="popup.audioProbeDesc"></p>
-    </div>
-
-    <p class="hint"><button type="button" id="openPrivacy" class="link-btn" data-i18n="popup.privacy"></button></p>
+    <button type="button" id="openOptions" class="full-width secondary" data-i18n="popup.allSettings"></button>
   </div>
   <script src="../i18n.js"></script>
+  <script src="../options/settings-ui.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>
