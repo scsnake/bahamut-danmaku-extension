@@ -307,7 +307,8 @@ async function init() {
   densityCurve = initDensityCurve({
     video: videoElement,
     player: playerElement,
-    getDanmaku: () => danmakuData,
+    // In info mode, the curve shows where the informative comments are.
+    getDanmaku: () => (infoSns ? danmakuData.filter(d => infoSns.has(d.sn)) : danmakuData),
     isEnabled: () => settings.densityEnabled !== false,
     getMarks: opSkip.range,
   });
@@ -936,6 +937,7 @@ function updateInfoMode() {
     });
   }
   applyOpacity();
+  if (densityCurve) densityCurve.update();
 }
 
 // Info mode shows informative comments at full opacity and dims the rest.

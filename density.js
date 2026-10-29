@@ -3,7 +3,8 @@
 // A faint curve of danmaku density over the whole episode, drawn just above
 // the progress bar so busy scenes show before you reach them. It lives inside
 // the player's `.vjs-progress-holder`, so it spans exactly the timeline and
-// fades out with the control bar. content.js calls initDensityCurve() once
+// fades out with the control bar. In info mode, getDanmaku() gives only the
+// informative comments (infomode.js). content.js calls initDensityCurve() once
 // the player exists and update() whenever the list, the filters or the
 // duration change. getMarks() (optional) gives the OP's { start, end } in
 // seconds, drawn as a pair of small triangles, ◣ at the start and ◢ at the
@@ -59,18 +60,25 @@ function initDensityCurve({ video, player, getDanmaku, isEnabled, getMarks = () 
     // Square-root scale, so quieter scenes still show next to the peaks.
     const values = smooth(countBins(getDanmaku(), duration)).map(Math.sqrt);
     const max = Math.max(...values);
-    if (!max) {
+    const range = getMarks();
+    // No comments (for example an episode with no informative ones): no
+    // curve, but the OP marks still show.
+    if (!max && !range) {
       root.remove();
       return;
     }
-    // One point per bin center (x = i + 0.5); the first and last values
-    // are carried out to both ends of the timeline.
-    const ys = values.map(v => round(DENSITY_HEIGHT * (1 - v / max)));
-    const points = ys.map((y, i) => `${i + 0.5},${y}`);
-    const top = `M0,${ys[0]} L${points.join(' L')} L${DENSITY_BINS},${ys[ys.length - 1]}`;
-    line.setAttribute('d', top);
-    area.setAttribute('d', `${top} L${DENSITY_BINS},${DENSITY_HEIGHT} L0,${DENSITY_HEIGHT} Z`);
-    const range = getMarks();
+    if (max) {
+      // One point per bin center (x = i + 0.5); the first and last values
+      // are carried out to both ends of the timeline.
+      const ys = values.map(v => round(DENSITY_HEIGHT * (1 - v / max)));
+      const points = ys.map((y, i) => `${i + 0.5},${y}`);
+      const top = `M0,${ys[0]} L${points.join(' L')} L${DENSITY_BINS},${ys[ys.length - 1]}`;
+      line.setAttribute('d', top);
+      area.setAttribute('d', `${top} L${DENSITY_BINS},${DENSITY_HEIGHT} L0,${DENSITY_HEIGHT} Z`);
+    } else {
+      line.setAttribute('d', '');
+      area.setAttribute('d', '');
+    }
     placeMark(startMark, range && range.start, duration);
     placeMark(endMark, range && range.end, duration);
     if (root.parentNode !== holder) holder.appendChild(root);
