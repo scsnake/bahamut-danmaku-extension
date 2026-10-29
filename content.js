@@ -10,8 +10,10 @@ const STATIC_DURATION_MS = 5000;   // top / bottom comments
 const ROLLING_UNIT_SEC = 12;       // speed = (screen width + 2 * text width) / 12 s
 const FONT_SIZES = { 0: 16, 1: 24, 2: 28 };
 const MODES = { 0: 'rolling', 1: 'top', 2: 'bottom' };
-// The AI filter (Gemini Nano) is not tested enough to ship: while false it
-// never runs, whatever the stored setting, and the settings page hides its switch.
+// TODO(ai-filter): not ready. The AI filter (Gemini Nano) is not tested
+// enough to ship: while false it never runs, whatever the stored setting,
+// and the settings page hides its switch. Not tested in the extension's
+// service worker (see the private VERIFICATION_TODO).
 const AI_FILTER_READY = false;
 // Comments still waiting for the AI this long after their time are dropped.
 const GRACE_TENTHS = 30;
@@ -269,7 +271,7 @@ async function init() {
   const storage = await chrome.storage.local.get("settings");
   settings = storage.settings || {
     aiFilterEnabled: false,
-    aiStrictness: 'moderate',
+    aiStrictness: 'moderate', // TODO(ai-filter): not implemented; nothing reads it
     keywordBlocklist: [],
     userBlocklist: []
   };
@@ -564,8 +566,7 @@ function keywordsKeptByServer() {
 // ":"), fetches this episode's list once without cookies, so without those
 // filters, for the OP guess only; what is shown does not change. Not when
 // the list from the server still has a comment with such a keyword: then
-// the server did not filter it (seen on 2026-10-29, when danmu.php gave
-// the same list with and without cookies).
+// the server did not filter it, and a second list gains nothing.
 async function loadOpList() {
   const sn = currentVideoSn;
   if (!danmakuData.length || opListSn === sn || !opCluesHiddenBy(officialKeywords)) return;

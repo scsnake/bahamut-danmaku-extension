@@ -18,8 +18,9 @@
 //   into parts too; the score keeps those out.
 // - Floods (laughs, symbols, chants such as 熬夜熬夜熬夜, dates and
 //   check-ins) are never informative.
-// Spoilers are not filtered yet. The same rules, with a command-line view
-// of the blocks, were tried first on cached episodes.
+// TODO(spoilers): not implemented; spoilers are not filtered yet.
+// The same rules, with a command-line view of the blocks, were tried first
+// on cached episodes.
 
 const INFO_DIM = 0.25;
 const INFO_PARALLEL_SEC = 1;

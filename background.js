@@ -18,7 +18,9 @@ chrome.runtime.onInstalled.addListener(async () => {
         audioProbe: false,
         debugMode: false,
         aiFilterEnabled: false,
-        aiStrictness: 'moderate', // 'low', 'moderate', 'high'
+        // TODO(ai-filter): not implemented; nothing reads it. Planned
+        // values: 'low', 'moderate', 'high'.
+        aiStrictness: 'moderate',
         keywordBlocklist: [],
         userBlocklist: []
       }
@@ -84,6 +86,8 @@ function dlog(event, data) {
   appendDebugLog([{ t: new Date().toISOString(), src: 'background', event, data }]);
 }
 
+// TODO(ai-filter): not ready. Runs only when content.js AI_FILTER_READY is
+// true (false for now), so none of the AI code below is used yet.
 const SYSTEM_PROMPT =
   "You are a content moderator for an anime streaming platform. " +
   "Your job is to determine if a user comment (danmaku) contains spoilers, " +
