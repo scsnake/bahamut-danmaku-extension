@@ -127,6 +127,12 @@
         <button id="clearLog" data-i18n="clear"></button>
       </div>
       <label class="probe">
+        <input type="checkbox" id="debugModeToggle" aria-describedby="tip-debugModeToggle">
+        <span data-i18n="popup.debugMode"></span>
+        <button type="button" class="info" aria-describedby="tip-debugModeToggle" data-i18n-aria-label="popup.info">i</button>
+      </label>
+      <p class="tip" id="tip-debugModeToggle" role="tooltip" data-i18n="popup.debugModeDesc"></p>
+      <label class="probe">
         <input type="checkbox" id="audioProbeToggle" aria-describedby="tip-audioProbeToggle">
         <span data-i18n="popup.audioProbe"></span>
         <button type="button" class="info" aria-describedby="tip-audioProbeToggle" data-i18n-aria-label="popup.info">i</button>

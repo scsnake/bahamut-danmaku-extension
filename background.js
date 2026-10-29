@@ -14,6 +14,7 @@ chrome.runtime.onInstalled.addListener(async () => {
         autoAgreeAgeGate: true,
         opAudio: true,
         audioProbe: false,
+        debugMode: false,
         aiFilterEnabled: false,
         aiStrictness: 'moderate', // 'low', 'moderate', 'high'
         keywordBlocklist: [],
@@ -36,8 +37,22 @@ function appendDebugLog(entries) {
   }).catch(err => console.warn("[Danmaku Enhancer] Debug log write failed:", err));
 }
 
+// Full logging is for development (settings.debugMode); otherwise only
+// errors are kept, here and in the content script.
+let debugMode = false;
+chrome.storage.local.get('settings').then(({ settings }) => {
+  debugMode = !!(settings && settings.debugMode);
+});
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.settings) {
+    debugMode = !!(changes.settings.newValue && changes.settings.newValue.debugMode);
+  }
+});
+
 function dlog(event, data) {
-  console.log("[Danmaku Enhancer]", event, data === undefined ? '' : data);
+  const error = /error|failed/i.test(event) || (!!data && data.ok === false);
+  if (!error && !debugMode) return;
+  (error ? console.warn : console.log)("[Danmaku Enhancer]", event, data === undefined ? '' : data);
   appendDebugLog([{ t: new Date().toISOString(), src: 'background', event, data }]);
 }
 

@@ -91,6 +91,7 @@ const debugBuffer = [];
 const stats = newStats();
 let frameStats = newFrameStats();
 let lastFrameAt = 0;
+let frameLoop = 0;           // measureFrame's requestAnimationFrame id
 let lastCountAt = 0;
 
 function newStats() {
@@ -101,8 +102,20 @@ function newFrameStats() {
   return { frames: 0, playingMs: 0, slowFrames: 0, maxFrameMs: 0, peakOnScreen: 0, peakOfficial: 0 };
 }
 
+// The full debug log (stats, player events, guesses) is for development and
+// is on only with settings.debugMode; otherwise only errors are kept.
+function debugOn() {
+  return settings.debugMode === true;
+}
+
+function isErrorEvent(event, data) {
+  return /error|failed/i.test(event) || (!!data && data.ok === false);
+}
+
 function dlog(event, data) {
-  console.log(LOG, event, data === undefined ? '' : data);
+  const error = isErrorEvent(event, data);
+  if (!error && !debugOn()) return;
+  (error ? console.warn : console.log)(LOG, event, data === undefined ? '' : data);
   debugBuffer.push({
     t: new Date().toISOString(),
     src: 'content',
@@ -120,7 +133,7 @@ function flushDebugLog() {
 }
 
 function logStats() {
-  if (!videoElement || videoElement.paused) return;
+  if (!debugOn() || !videoElement || videoElement.paused) return;
   const f = frameStats;
   dlog('stats', {
     ...stats,
@@ -143,12 +156,15 @@ function logStats() {
 // layer and in the official one. The official layer keeps running under
 // ours (only hidden), so both counts are live at the same time. It marks
 // finished comments `.useless` and removes them later.
+// Runs only while the video plays and debug mode is on (the stats are all
+// it feeds).
 function measureFrame(now) {
-  requestAnimationFrame(measureFrame);
-  if (videoElement.paused) {
+  if (!debugOn()) {
+    frameLoop = 0;
     lastFrameAt = 0;
     return;
   }
+  frameLoop = requestAnimationFrame(measureFrame);
   const f = frameStats;
   // A longer gap means the tab was hidden (no frames), not a slow frame.
   if (lastFrameAt && now - lastFrameAt < 1000) {
@@ -229,7 +245,6 @@ async function init() {
   currentVideoSn = videoSn;
   setInterval(flushDebugLog, DEBUG_FLUSH_MS);
   setInterval(logStats, STATS_INTERVAL_MS);
-  dlog('init', { url: location.pathname + location.search, version: chrome.runtime.getManifest().version });
 
   const storage = await chrome.storage.local.get("settings");
   settings = storage.settings || {
@@ -238,14 +253,17 @@ async function init() {
     keywordBlocklist: [],
     userBlocklist: []
   };
+  dlog('init', { url: location.pathname + location.search, version: chrome.runtime.getManifest().version });
   DmkI18n.setLanguage(settings.uiLanguage);
 
   let danmuLayer;
   try {
-    videoElement = await waitForElement('#ani_video_html5_api');
+    // No time limit: a background tab or a long wait on the rating notice
+    // can delay the player.
+    videoElement = await waitForElement('#ani_video_html5_api', 0);
     // The official layer. Our overlay goes inside it so both always cover
     // the same area (normal, theater and fullscreen).
-    danmuLayer = await waitForElement('#ani_video .vjs-danmu');
+    danmuLayer = await waitForElement('#ani_video .vjs-danmu', 0);
   } catch (err) {
     dlog('error', { where: 'init', message: err.message });
     return;
@@ -278,6 +296,7 @@ async function init() {
     getVideoSn: () => currentVideoSn,
     getAudio: opAudio.result,
     isEnabled: () => settings.densityEnabled !== false,
+    keepReview: debugOn,
     log: dlog,
   });
   densityCurve = initDensityCurve({
@@ -357,10 +376,9 @@ async function init() {
     activeAnimations.forEach(a => { a.playbackRate = videoElement.playbackRate || 1; });
   });
   videoElement.addEventListener('seeked', () => dlog('seeked'));
-  requestAnimationFrame(measureFrame);
   videoElement.addEventListener('loadedmetadata', () => dlog('loadedmetadata', { duration: videoElement.duration }));
   window.addEventListener('pagehide', flushDebugLog);
-  setInterval(aiScan, AI_SCAN_MS);
+  if (AI_FILTER_READY) setInterval(aiScan, AI_SCAN_MS);
   setInterval(liveRefresh, LIVE_REFRESH_MS);
 
   await loadDanmaku('init');
@@ -813,6 +831,9 @@ function step(nowMs, bucket) {
 function pause() {
   cancelAnimationFrame(rafId);
   rafId = 0;
+  cancelAnimationFrame(frameLoop);
+  frameLoop = 0;
+  lastFrameAt = 0;
   activeAnimations.forEach(a => { try { a.pause(); } catch (_) {} });
 }
 
@@ -820,6 +841,7 @@ function resume() {
   if (videoElement.paused || videoElement.seeking) return;
   activeAnimations.forEach(a => { try { a.play(); } catch (_) {} });
   if (!rafId) rafId = requestAnimationFrame(tick);
+  if (!frameLoop && debugOn()) frameLoop = requestAnimationFrame(measureFrame);
 }
 
 function cleanAll() {
@@ -830,6 +852,7 @@ function cleanAll() {
   }
   Object.values(lanes).forEach(l => l.reset(areaHeight));
   dueQueue = [];
+  document.getElementById('danmaku-info-modal')?.remove();
 }
 
 // Restart from the current position (after a seek, a start, an ad or a
@@ -940,8 +963,9 @@ function renderDanmaku(d, startMs, elapsedMs = 0) {
 
   el.addEventListener('click', (e) => {
     e.stopPropagation();
+    const wasPlaying = !videoElement.paused;
     videoElement.pause();
-    showDanmakuModal(d);
+    showDanmakuModal(d, wasPlaying);
   });
   return true;
 }
@@ -986,6 +1010,7 @@ function indexAfter(list, t) {
   return lo;
 }
 
+// `timeoutMs` 0 waits as long as it takes.
 function waitForElement(selector, timeoutMs = 15000) {
   return new Promise((resolve, reject) => {
     const existing = document.querySelector(selector);
@@ -1001,7 +1026,7 @@ function waitForElement(selector, timeoutMs = 15000) {
     });
     observer.observe(document.body, { childList: true, subtree: true });
 
-    const timer = setTimeout(() => {
+    const timer = timeoutMs > 0 && setTimeout(() => {
       observer.disconnect();
       reject(new Error(`Timed out waiting for ${selector}`));
     }, timeoutMs);
@@ -1010,7 +1035,8 @@ function waitForElement(selector, timeoutMs = 15000) {
 
 init();
 
-function showDanmakuModal(d) {
+// `wasPlaying`: play again on close only if the video was playing.
+function showDanmakuModal(d, wasPlaying) {
   const existing = document.getElementById('danmaku-info-modal');
   if (existing) existing.remove();
 
@@ -1067,10 +1093,12 @@ function showDanmakuModal(d) {
   modal.addEventListener('click', (e) => e.stopPropagation());
   overlayElement.appendChild(modal);
 
-  closeBtn.onclick = () => {
+  const close = () => {
     modal.remove();
-    videoElement.play();
+    if (wasPlaying) videoElement.play();
   };
+
+  closeBtn.onclick = close;
 
   copyBtn.onclick = () => {
     navigator.clipboard.writeText(d.text);
@@ -1078,24 +1106,24 @@ function showDanmakuModal(d) {
   };
 
   blockUserBtn.onclick = async () => {
+    settings.userBlocklist = settings.userBlocklist || [];
     if (!settings.userBlocklist.includes(d.userid)) {
       settings.userBlocklist.push(d.userid);
       await chrome.storage.local.set({ settings });
     }
-    modal.remove();
+    close();
     processDanmaku();
     removeOnScreen(el => bySn.get(Number(el.dataset.sn))?.userid === d.userid);
-    videoElement.play();
   };
 
   filterTextBtn.onclick = async () => {
+    settings.keywordBlocklist = settings.keywordBlocklist || [];
     if (!settings.keywordBlocklist.includes(d.text)) {
       settings.keywordBlocklist.push(d.text);
       await chrome.storage.local.set({ settings });
     }
-    modal.remove();
+    close();
     processDanmaku();
     removeOnScreen(el => bySn.get(Number(el.dataset.sn))?.text === d.text);
-    videoElement.play();
   };
 }

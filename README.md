@@ -61,7 +61,7 @@ A clean, lightweight popup UI (`popup.html`) allowing you to:
 - **`i18n.js`**: Interface text in Traditional Chinese (Taiwan, the default) and English, switched in the popup. `_locales/` holds only the extension name and description, which Chrome shows in the browser's own language.
 - **`density.js`**: Draws the density curve as an SVG inside the player's `.vjs-progress-holder`.
 - **`opskip.js`**: Finds the OP from the danmaku, for the density curve's ticks and the Skip OP button.
-- **`audioprobe.js`**: Test tool, off by default (popup, debug section): records per-second audio numbers through `video.captureStream()`, exported with the debug log.
+- **`audioprobe.js`**: Test tool, off by default (popup, debug section): records per-second audio numbers through `video.captureStream()`, exported with the debug log. The debug log keeps only errors unless "Debug mode" (popup, debug section, off by default) is on.
 - **`content.css`**: Hides the native comments, styles our comments like the official ones, and provides the light/dark mode UI for the contextual modal.
 - **`search/`**: The danmaku search page (`search.html`/`.js`/`.css`), an extension page that reads the subscription list, episode lists and comment lists with the Bahamut login cookie.
 - **`bookmarks/`**: Scene bookmarks. `common.js` holds helpers shared by every context; `store.js` (imported by `background.js`) is the single writer to `chrome.storage.local`, which serializes updates from the page and the manager; `content-bookmarks.js`/`.css` is the in-player toolbar, panel and quick editor; `manager.html`/`.js`/`.css` is the full-page manager.

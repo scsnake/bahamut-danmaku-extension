@@ -44,7 +44,7 @@
 // All comments count here, also the ones the viewer's filters hide.
 // content.js calls update() whenever the list changes.
 //
-// While the guesses are tested, episodes where nothing could be placed are
+// In debug mode (keepReview), episodes where nothing could be placed are
 // kept for review in chrome.storage.local (OP_REVIEW_STORE, newest
 // OP_REVIEW_MAX), with their OP-related comments; the popup exports them
 // with the debug log. An episode that gets a result later is removed.
@@ -223,7 +223,7 @@ function busiestWindow(times, window = OP_WINDOW_SEC) {
 
 // getAudio: the OP found from the sound (opaudio.js), preferred over the
 // danmaku guess.
-function initOpSkip({ video, player, getDanmaku, getVideoSn, getAudio, isEnabled, log }) {
+function initOpSkip({ video, player, getDanmaku, getVideoSn, getAudio, isEnabled, keepReview = () => false, log }) {
   let opening = null;
   let found = null;
   let logged = '';
@@ -257,8 +257,10 @@ function initOpSkip({ video, player, getDanmaku, getVideoSn, getAudio, isEnabled
     if (found && key !== logged) {
       logged = key;
       log('opening', found);
-      keepForReview(sn, found, list, duration)
-        .catch(err => console.warn('[Danmaku Enhancer] OP review write failed:', err));
+      if (keepReview()) {
+        keepForReview(sn, found, list, duration)
+          .catch(err => console.warn('[Danmaku Enhancer] OP review write failed:', err));
+      }
     }
     if (opening) {
       button.textContent = DmkI18n.t('player.skipOp');

@@ -34,6 +34,18 @@ function normalizeTags(tags) {
   return [...new Set(cleaned)].slice(0, 20);
 }
 
+// Covers come from the page's og:image (p2.bahamut.com.tw). Other hosts are
+// dropped, so an imported file cannot make the manager load images from
+// any server.
+function isBahamutImage(url) {
+  try {
+    const u = new URL(url);
+    return u.protocol === 'https:' && /(^|\.)(bahamut|gamer)\.com\.tw$/.test(u.hostname);
+  } catch (_) {
+    return false;
+  }
+}
+
 // Everything that reaches storage passes through here, including imported
 // files, so treat input as untrusted and return null when it's unusable.
 function sanitizeBookmark(raw) {
@@ -64,7 +76,7 @@ function sanitizeBookmark(raw) {
     title: cleanText(raw.title, 200),
     note: cleanText(raw.note, 5000),
     tags: normalizeTags(raw.tags),
-    coverUrl: /^https:\/\//.test(coverUrl) ? coverUrl : '',
+    coverUrl: isBahamutImage(coverUrl) ? coverUrl : '',
     danmaku: (Array.isArray(raw.danmaku) ? raw.danmaku : [])
       .slice(0, BOOKMARK_MAX_SNIPPET)
       .map(d => ({ time: DmkBookmarks.round1(Number(d && d.time) || 0), text: cleanText(d && d.text, 200) }))

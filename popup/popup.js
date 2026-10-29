@@ -66,6 +66,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     await saveSettings();
   });
 
+  const debugModeToggle = document.getElementById('debugModeToggle');
+  debugModeToggle.checked = settings.debugMode === true;
+  debugModeToggle.addEventListener('change', async (e) => {
+    settings.debugMode = e.target.checked;
+    await saveSettings();
+  });
+
   const audioProbeToggle = document.getElementById('audioProbeToggle');
   audioProbeToggle.checked = settings.audioProbe === true;
   audioProbeToggle.addEventListener('change', async (e) => {

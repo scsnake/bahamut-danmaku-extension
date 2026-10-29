@@ -70,6 +70,8 @@ const DmkI18n = (() => {
       'popup.users': '使用者封鎖清單',
       'popup.userPlaceholder': '輸入要封鎖的使用者 ID…',
       'popup.debugLog': '偵錯紀錄',
+      'popup.debugMode': '偵錯模式（開發用）',
+      'popup.debugModeDesc': '記錄完整的偵錯資料：播放事件與統計、OP 推測，以及無法推測 OP 的集數與相關彈幕。關閉時只記錄錯誤。資料只存在本機，按「匯出」才會存成檔案。',
       'popup.audioProbe': '記錄音訊特徵（測試）',
       'popup.audioProbeDesc': '播放時每秒記錄幾項音訊數值（音量、停頓、節拍等），用來測試能否從聲音找出 OP。只記錄數值，不錄音；影片播放不受影響。資料隨偵錯紀錄一起匯出。',
 
@@ -275,6 +277,8 @@ const DmkI18n = (() => {
       'popup.users': 'User Blocklist',
       'popup.userPlaceholder': 'Enter User ID to block...',
       'popup.debugLog': 'Debug Log',
+      'popup.debugMode': 'Debug mode (for development)',
+      'popup.debugModeDesc': 'Keeps the full debug log: player events and stats, OP guesses, and episodes where no OP could be guessed with their OP comments. When off, only errors are kept. The data stays on this computer and is saved as a file only when you click Export.',
       'popup.audioProbe': 'Record audio features (test)',
       'popup.audioProbeDesc': 'While a video plays, records a few audio numbers per second (loudness, pauses, beat and more), to test whether the sound can find the OP. Only numbers are kept, no audio; playback is not changed. Exported with the debug log.',
 

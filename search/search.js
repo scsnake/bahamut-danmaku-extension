@@ -51,7 +51,9 @@ async function loadFavorites() {
   let found = 0;
   try {
     for (let page = 1; page <= MAX_GATHER_PAGES; page++) {
-      const html = await fetch(`${ANI}/mygather.php?page=${page}`, { credentials: 'include' }).then(r => r.text());
+      const res = await fetch(`${ANI}/mygather.php?page=${page}`, { credentials: 'include' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const html = await res.text();
       const doc = new DOMParser().parseFromString(html, 'text/html');
       let added = 0;
       for (const card of doc.querySelectorAll('a.theme-list-main[href*="animeRef.php?sn="]')) {
@@ -91,8 +93,12 @@ async function loadHistory() {
     const json = await fetchJson(`${HISTORY_API}?page=${historyPage + 1}`);
     const data = (json && json.data) || {};
     const list = data.history || [];
-    historyPages = Number(data.totalPage) || historyPage + 1;
-    historyPage++;
+    // An empty reply (for example while logged out) is not a page: the
+    // button stays usable for a retry after logging in.
+    if (list.length) {
+      historyPages = Number(data.totalPage) || historyPage + 1;
+      historyPage++;
+    }
     for (const h of list) {
       const key = `anime:${h.animeSn}`;
       if (works.has(key)) continue;

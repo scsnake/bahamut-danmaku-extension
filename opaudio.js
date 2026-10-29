@@ -17,10 +17,11 @@
 //   the first OP_LATEST_FRACTION of both episodes, is the OP. The run is
 //   then grown over all kept seconds at that shift to find its edges.
 // - A run whose both edges were seen (the sound just past them differs;
-//   silence counts) and that is OP_MIN_SEC–OP_MAX_SEC long becomes the
+//   silence counts) and that is OP_SHORTEST_SEC–OP_MAX_SEC long becomes the
 //   work's OP profile, and a longer such run replaces it. Later episodes
 //   match the profile after AUDIO_OP_PROFILE_RUN_SEC, which gives the start
-//   and the end before the end has played.
+//   and the end before the end has played. A shorter run is part of the OP
+//   cut off by a quiet moment inside the song: its end is not the OP's end.
 // Episode 1, .5 episodes and films are neither kept nor used for a
 // profile: their OP is often missing, moved or different.
 // The result for each episode is kept too, so a revisit knows its OP at
@@ -307,13 +308,14 @@ function initOpAudio({ video, getVideoSn, isEnabled, onChange, log }) {
         ...audioOpFromRun(hit.run),
         length: hit.run.length,
         source: 'audio-match',
-        endKnown: hit.run.endSeen,
+        // A short run stopped at a quiet moment inside the song.
+        endKnown: hit.run.endSeen && hit.run.length >= OP_SHORTEST_SEC,
         startKnown: hit.run.startSeen,
         lag: hit.lag,
         otherSn,
       };
       if (hit.run.startSeen && hit.run.endSeen && c.learns &&
-          hit.run.length >= OP_MIN_SEC && hit.run.length <= OP_MAX_SEC &&
+          hit.run.length >= OP_SHORTEST_SEC && hit.run.length <= OP_MAX_SEC &&
           (!e.profile || hit.run.length > e.profile.length)) {
         learnProfile(c, hit.run);
       }
