@@ -6,7 +6,8 @@
 // fades out with the control bar. content.js calls initDensityCurve() once
 // the player exists and update() whenever the list, the filters or the
 // duration change. getMarks() (optional) gives the OP's { start, end } in
-// seconds, drawn as two ticks (opskip.js).
+// seconds, drawn as a pair of small triangles, ◣ at the start and ◢ at the
+// end (opskip.js).
 
 const DENSITY_BINS = 240;
 const DENSITY_HEIGHT = 24;  // viewBox units; the CSS sets the pixel height
@@ -16,18 +17,25 @@ const DENSITY_KERNEL = [1, 4, 6, 4, 1];
 
 function initDensityCurve({ video, player, getDanmaku, isEnabled, getMarks = () => null }) {
   const SVG_NS = 'http://www.w3.org/2000/svg';
+  const root = document.createElement('div');
+  root.className = 'dmk-density';
+  root.setAttribute('aria-hidden', 'true');
   const svg = document.createElementNS(SVG_NS, 'svg');
-  svg.classList.add('dmk-density');
+  svg.classList.add('dmk-density-curve');
   svg.setAttribute('viewBox', `0 0 ${DENSITY_BINS} ${DENSITY_HEIGHT}`);
   svg.setAttribute('preserveAspectRatio', 'none');
-  svg.setAttribute('aria-hidden', 'true');
   const area = document.createElementNS(SVG_NS, 'path');
   area.classList.add('dmk-density-area');
   const line = document.createElementNS(SVG_NS, 'path');
   line.classList.add('dmk-density-line');
-  const marks = document.createElementNS(SVG_NS, 'path');
-  marks.classList.add('dmk-density-mark');
-  svg.append(area, line, marks);
+  svg.append(area, line);
+  // HTML, not SVG: the curve stretches with the timeline, the marks keep
+  // their size.
+  const startMark = document.createElement('div');
+  startMark.className = 'dmk-op-mark dmk-op-mark-start';
+  const endMark = document.createElement('div');
+  endMark.className = 'dmk-op-mark dmk-op-mark-end';
+  root.append(svg, startMark, endMark);
 
   let pending = 0;
 
@@ -45,14 +53,14 @@ function initDensityCurve({ video, player, getDanmaku, isEnabled, getMarks = () 
       Number.isFinite(duration) && duration >= DENSITY_MIN_SEC &&
       !player.classList.contains('vjs-ad-playing');
     if (!show) {
-      svg.remove();
+      root.remove();
       return;
     }
     // Square-root scale, so quieter scenes still show next to the peaks.
     const values = smooth(countBins(getDanmaku(), duration)).map(Math.sqrt);
     const max = Math.max(...values);
     if (!max) {
-      svg.remove();
+      root.remove();
       return;
     }
     // One point per bin center (x = i + 0.5); the first and last values
@@ -63,11 +71,14 @@ function initDensityCurve({ video, player, getDanmaku, isEnabled, getMarks = () 
     line.setAttribute('d', top);
     area.setAttribute('d', `${top} L${DENSITY_BINS},${DENSITY_HEIGHT} L0,${DENSITY_HEIGHT} Z`);
     const range = getMarks();
-    marks.setAttribute('d', range
-      ? [range.start, range.end]
-        .map(sec => `M${round(DENSITY_BINS * sec / duration)},0 V${DENSITY_HEIGHT}`).join(' ')
-      : '');
-    if (svg.parentNode !== holder) holder.appendChild(svg);
+    placeMark(startMark, range && range.start, duration);
+    placeMark(endMark, range && range.end, duration);
+    if (root.parentNode !== holder) holder.appendChild(root);
+  }
+
+  function placeMark(mark, sec, duration) {
+    mark.hidden = !Number.isFinite(sec);
+    if (!mark.hidden) mark.style.left = `${round(100 * Math.min(Math.max(sec / duration, 0), 1))}%`;
   }
 
   // Counts the comments the viewer would see (not blocked) per time bin.
