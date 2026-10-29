@@ -53,6 +53,7 @@ function initOpReport({ video, player, getVideoSn, getResult, isEnabled, log }) 
   button.hidden = true;
   button.addEventListener('click', (e) => {
     e.stopPropagation();
+    opFocusPlayer(player);
     report();
   });
 
@@ -62,6 +63,7 @@ function initOpReport({ video, player, getVideoSn, getResult, isEnabled, log }) 
   hint.hidden = true;
   hint.addEventListener('click', (e) => {
     e.stopPropagation();
+    opFocusPlayer(player);
     report(hint);
   });
   hint.addEventListener('pointerleave', hideHintSoon);
@@ -286,6 +288,7 @@ function initOpReport({ video, player, getVideoSn, getResult, isEnabled, log }) 
 
       const close = (answer) => {
         dialog.remove();
+        opFocusPlayer(player);
         if (wasPlaying) video.play().catch(() => {});
         resolve(answer);
       };

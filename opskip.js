@@ -221,6 +221,14 @@ function busiestWindow(times, window = OP_WINDOW_SEC) {
   return best;
 }
 
+// A clicked button that hides (or a dialog that closes) drops focus to
+// <body>, but the official hotkeys (←/→ to seek, space, ...) listen on the
+// player element: give it focus back. opreport.js uses this too.
+function opFocusPlayer(player) {
+  if (!player.hasAttribute('tabindex')) player.tabIndex = -1;
+  player.focus({ preventScroll: true });
+}
+
 // getAudio: the OP found from the sound (opaudio.js), preferred over the
 // danmaku guess.
 function initOpSkip({ video, player, getDanmaku, getVideoSn, getAudio, isEnabled, keepReview = () => false, log }) {
@@ -238,6 +246,7 @@ function initOpSkip({ video, player, getDanmaku, getVideoSn, getAudio, isEnabled
     log('opSkip', { from: Math.round(video.currentTime), to: opening.end });
     video.currentTime = opening.end;
     button.hidden = true;
+    opFocusPlayer(player);
   });
 
   function update() {
