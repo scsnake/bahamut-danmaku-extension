@@ -15,6 +15,11 @@ const MODES = { 0: 'rolling', 1: 'top', 2: 'bottom' };
 // and the settings page hides its switch. Not tested in the extension's
 // service worker (see the private VERIFICATION_TODO).
 const AI_FILTER_READY = false;
+// TODO(audio-probe): development tool. While false, settings.audioProbe
+// (keep every second's audio numbers for export) is ignored and the
+// settings page hides its switch. The capture itself still runs for the OP
+// audio match (settings.opAudio).
+const AUDIO_PROBE_READY = false;
 // Comments still waiting for the AI this long after their time are dropped.
 const GRACE_TENTHS = 30;
 // The AI checks comments up to this far ahead of the playhead, a few unique
@@ -302,6 +307,7 @@ async function init() {
   applyOverlayMode();
   const opSkipOn = () => settings.opSkipEnabled !== false;
   const opAudioOn = () => opSkipOn() && settings.opAudio !== false;
+  const probeKeep = () => AUDIO_PROBE_READY && settings.audioProbe === true;
   opAudio = initOpAudio({
     video: videoElement,
     getVideoSn: () => currentVideoSn,
@@ -343,8 +349,8 @@ async function init() {
     video: videoElement,
     player: playerElement,
     getVideoSn: () => currentVideoSn,
-    isEnabled: () => settings.audioProbe === true || opAudioOn(),
-    keep: () => settings.audioProbe === true,
+    isEnabled: () => probeKeep() || opAudioOn(),
+    keep: probeKeep,
     onSecond: opAudio.onSecond,
     log: dlog,
   });

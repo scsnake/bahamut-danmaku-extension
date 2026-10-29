@@ -136,14 +136,18 @@
           <button type="button" id="clearLog" data-i18n="clear"></button>
         </div>
       </div>
-      <div class="setting-group">
+      <!-- Hidden: debug mode is for development. To turn it on, run
+           DmkSettings.update({ set: { debugMode: true } }) in this page's
+           console. -->
+      <div class="setting-group" hidden>
         <label>
           <input type="checkbox" id="debugModeToggle" aria-describedby="tip-debugModeToggle">
           <span data-i18n="popup.debugMode"></span>
         </label>
         <p class="tip" id="tip-debugModeToggle" data-i18n="popup.debugModeDesc"></p>
       </div>
-      <div class="setting-group">
+      <!-- Hidden: a development tool; see AUDIO_PROBE_READY in content.js. -->
+      <div class="setting-group" hidden>
         <label>
           <input type="checkbox" id="audioProbeToggle" aria-describedby="tip-audioProbeToggle">
           <span data-i18n="popup.audioProbe"></span>
