@@ -72,6 +72,9 @@ let display = readOfficialDisplay();
 let nextIndex = 0;         // first item in danmakuData not yet due
 let lastTenths = 0;        // items up to this time were already taken
 let dueQueue = [];         // due items still waiting (AI) to be rendered
+// The viewer's own new comments that a reload found while the video was
+// paused (paused to type); shown when playback starts again.
+let ownPending = [];
 let lastBucket = null;
 let rafId = 0;
 let adActive = false;
@@ -463,6 +466,15 @@ async function loadDanmaku(reason) {
   opSkip.update();
   densityCurve.update();
 
+  if (reason === 'sent' && videoElement.paused) {
+    // Items after lastTenths still show the normal way when play starts.
+    const late = added.filter(d => d.time <= lastTenths && !ownPending.some(p => p.sn === d.sn));
+    if (late.length) {
+      ownPending.push(...late);
+      dlog('ownPending', { sns: late.map(d => d.sn) });
+    }
+  }
+
   if (!previous.size) {
     resync();
     return;
@@ -840,6 +852,11 @@ function pause() {
 function resume() {
   if (videoElement.paused || videoElement.seeking) return;
   activeAnimations.forEach(a => { try { a.play(); } catch (_) {} });
+  if (ownPending.length) {
+    const pending = ownPending.map(d => bySn.get(d.sn)).filter(Boolean);
+    ownPending = [];
+    showLateArrivals(pending);
+  }
   if (!rafId) rafId = requestAnimationFrame(tick);
   if (!frameLoop && debugOn()) frameLoop = requestAnimationFrame(measureFrame);
 }
@@ -852,6 +869,8 @@ function cleanAll() {
   }
   Object.values(lanes).forEach(l => l.reset(areaHeight));
   dueQueue = [];
+  // A seek, an ad or another episode: backfill shows them if still near.
+  ownPending = [];
   document.getElementById('danmaku-info-modal')?.remove();
 }
 
