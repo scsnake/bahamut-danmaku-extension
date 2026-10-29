@@ -64,8 +64,7 @@ If this policy changes, the new version is published with the extension, with a 
 
 ## Contact
 
-<!-- TODO: add a contact address or the project's issue page before publishing. -->
-Questions about this policy: contact the developer through the extension's Chrome Web Store page.
+Questions about this policy: open an issue at <https://github.com/scsnake/bahamut-danmaku-extension/issues>.
 
 ---
 
