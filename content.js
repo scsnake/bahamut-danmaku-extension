@@ -534,8 +534,8 @@ function liveRefresh() {
 async function fetchDanmaku(videoSn, geos, credentials = 'include') {
   // Same request as the official player. An empty geo list means the user
   // turned off every danmaku source. The server applies the user's official
-  // keyword filters and mute list, so the request carries the cookies
-  // (loadOpList leaves them out on purpose).
+  // keyword filters and mute list (when it does: see loadOpList), so the
+  // request carries the cookies (loadOpList leaves them out on purpose).
   if (!geos.length) return [];
   const url = `${DANMU_API}?videoSn=${encodeURIComponent(videoSn)}&geo=${encodeURIComponent(geos.join(','))}`;
   ownFetchStarts.push(performance.now());
@@ -547,12 +547,27 @@ async function fetchDanmaku(videoSn, geos, credentials = 'include') {
   return list;
 }
 
+// True when a comment in the list has an official keyword that hides OP
+// clues: the server did not leave such comments out.
+function keywordsKeptByServer() {
+  const norm = s => String(s).normalize('NFKC').toLowerCase();
+  const hiding = officialKeywords.filter(k => opCluesHiddenBy([k])).map(k => norm(k).trim());
+  return danmakuData.some(d => {
+    const text = norm(d.text);
+    return hiding.some(k => text.includes(k));
+  });
+}
+
 // When the viewer's official keywords hide OP clues (a filtered "空降" or
 // ":"), fetches this episode's list once without cookies, so without those
-// filters, for the OP guess only; what is shown does not change.
+// filters, for the OP guess only; what is shown does not change. Not when
+// the list from the server still has a comment with such a keyword: then
+// the server did not filter it (seen on 2026-10-29, when danmu.php gave
+// the same list with and without cookies).
 async function loadOpList() {
   const sn = currentVideoSn;
   if (!danmakuData.length || opListSn === sn || !opCluesHiddenBy(officialKeywords)) return;
+  if (keywordsKeptByServer()) return;
   opListSn = sn;
   opList = null;
   try {
