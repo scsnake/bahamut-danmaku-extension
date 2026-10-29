@@ -298,7 +298,8 @@ async function init() {
   onResize();
   addPlayerToggle();
   applyOverlayMode();
-  const opAudioOn = () => settings.densityEnabled !== false && settings.opAudio !== false;
+  const opSkipOn = () => settings.opSkipEnabled !== false;
+  const opAudioOn = () => opSkipOn() && settings.opAudio !== false;
   opAudio = initOpAudio({
     video: videoElement,
     getVideoSn: () => currentVideoSn,
@@ -315,7 +316,7 @@ async function init() {
     getDanmaku: () => (opList && opListSn === currentVideoSn ? opList : danmakuData),
     getVideoSn: () => currentVideoSn,
     getAudio: opAudio.result,
-    isEnabled: () => settings.densityEnabled !== false,
+    isEnabled: opSkipOn,
     keepReview: debugOn,
     log: dlog,
   });
@@ -325,6 +326,7 @@ async function init() {
     // In info mode, the curve shows where the informative comments are.
     getDanmaku: () => (infoSns ? danmakuData.filter(d => infoSns.has(d.sn)) : danmakuData),
     isEnabled: () => settings.densityEnabled !== false,
+    // null while Skip OP is off; the marks show without the curve too.
     getMarks: opSkip.range,
   });
   initOpReport({
@@ -332,7 +334,7 @@ async function init() {
     player: playerElement,
     getVideoSn: () => currentVideoSn,
     getResult: opSkip.result,
-    isEnabled: () => settings.densityEnabled !== false,
+    isEnabled: opSkipOn,
     log: dlog,
   });
   audioProbe = initAudioProbe({

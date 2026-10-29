@@ -10,6 +10,7 @@ chrome.runtime.onInstalled.addListener(async () => {
       settings: {
         overlayEnabled: true,
         densityEnabled: true,
+        opSkipEnabled: true,
         liveUpdate: true,
         infoMode: false,
         autoAgreeAgeGate: true,

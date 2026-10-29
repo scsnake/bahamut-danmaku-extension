@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   DmkSettings.bindToggle('liveToggle', 'liveUpdate', true);
   DmkSettings.bindToggle('infoModeToggle', 'infoMode', false);
   DmkSettings.bindToggle('densityToggle', 'densityEnabled', true);
+  DmkSettings.bindToggle('opSkipToggle', 'opSkipEnabled', true);
   DmkSettings.bindToggle('opAudioToggle', 'opAudio', true);
   DmkSettings.bindToggle('aiFilterToggle', 'aiFilterEnabled', false);
   DmkSettings.bindToggle('debugModeToggle', 'debugMode', false);

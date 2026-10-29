@@ -6,9 +6,10 @@
 // fades out with the control bar. In info mode, getDanmaku() gives only the
 // informative comments (infomode.js). content.js calls initDensityCurve() once
 // the player exists and update() whenever the list, the filters or the
-// duration change. getMarks() (optional) gives the OP's { start, end } in
-// seconds, drawn as a pair of small triangles, ◣ at the start and ◢ at the
-// end (opskip.js).
+// duration change. isEnabled() is the curve's own switch. getMarks()
+// (optional) gives the OP's { start, end } in seconds, drawn as a pair of
+// small triangles, ◣ at the start and ◢ at the end (opskip.js); the marks
+// show also while the curve is off.
 
 const DENSITY_BINS = 240;
 const DENSITY_HEIGHT = 24;  // viewBox units; the CSS sets the pixel height
@@ -50,19 +51,20 @@ function initDensityCurve({ video, player, getDanmaku, isEnabled, getMarks = () 
   function draw() {
     const holder = player.querySelector('.vjs-progress-holder');
     const duration = video.duration;
-    const show = isEnabled() && holder &&
+    const show = holder &&
       Number.isFinite(duration) && duration >= DENSITY_MIN_SEC &&
       !player.classList.contains('vjs-ad-playing');
-    if (!show) {
+    const range = show ? getMarks() : null;
+    if (!show || (!isEnabled() && !range)) {
       root.remove();
       return;
     }
     // Square-root scale, so quieter scenes still show next to the peaks.
-    const values = smooth(countBins(getDanmaku(), duration)).map(Math.sqrt);
+    // With the curve off (isEnabled() false), only the OP marks show.
+    const values = isEnabled() ? smooth(countBins(getDanmaku(), duration)).map(Math.sqrt) : [0];
     const max = Math.max(...values);
-    const range = getMarks();
-    // No comments (for example an episode with no informative ones): no
-    // curve, but the OP marks still show.
+    // No comments (for example an episode with no informative ones), or
+    // the curve off: no curve, but the OP marks still show.
     if (!max && !range) {
       root.remove();
       return;

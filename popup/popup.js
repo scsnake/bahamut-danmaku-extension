@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   DmkSettings.bindToggle('liveToggle', 'liveUpdate', true);
   DmkSettings.bindToggle('infoModeToggle', 'infoMode', false);
   DmkSettings.bindToggle('densityToggle', 'densityEnabled', true);
+  const opSkipToggle = DmkSettings.bindToggle('opSkipToggle', 'opSkipEnabled', true);
 
   const { bookmarks = [] } = await chrome.storage.local.get("bookmarks");
   document.getElementById('bookmarkCount').textContent = bookmarks.length ? `(${bookmarks.length})` : '';
@@ -35,10 +36,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // One-click wrong-OP report for the current episode tab (opreport.js;
   // the tab asks for consent the first time). Shown only when reporting is
-  // set up in background.js.
+  // set up in background.js and Skip OP is on (the player has no OP guess
+  // to report otherwise).
+  let reportReady = false;
+  const showReportRow = () => {
+    document.getElementById('opReportRow').hidden = !(reportReady && opSkipToggle.checked);
+  };
   chrome.runtime.sendMessage({ type: 'OP_REPORT_READY' }).then((res) => {
-    document.getElementById('opReportRow').hidden = !(res && res.ready);
+    reportReady = !!(res && res.ready);
+    showReportRow();
   }).catch(() => {});
+  DmkSettings.onChange(showReportRow);
   document.getElementById('opReport').addEventListener('click', async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     try {
