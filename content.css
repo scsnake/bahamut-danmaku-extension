@@ -123,6 +123,33 @@
   opacity: 0.8;
 }
 
+/* Floating copy near the pointer, shown when it rests near the start of
+   the progress bar or in the lower-left corner (opreport.js). */
+.video-js .dmk-op-report-float {
+  position: absolute;
+  z-index: 10001;
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.45);
+  color: rgba(255, 255, 255, 0.85);
+  font: 12px/1.4 -apple-system, BlinkMacSystemFont, "PingFang TC", "Microsoft JhengHei", sans-serif;
+  white-space: nowrap;
+  opacity: 0.7;
+  cursor: pointer;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.video-js .dmk-op-report-float:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+}
+
+.video-js .dmk-op-report-float[hidden] {
+  display: none;
+}
+
 .video-js .dmk-op-toast {
   position: absolute;
   right: 16px;
