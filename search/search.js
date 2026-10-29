@@ -17,8 +17,19 @@ const VIDEO_API = 'https://api.gamer.com.tw/anime/v1/video.php';
 const DANMU_API = 'https://api.gamer.com.tw/anime/v1/danmu.php';
 const HISTORY_API = 'https://api.gamer.com.tw/anime/v3/history.php';
 const MAX_GATHER_PAGES = 30;
-// Requests at the same time; keeps the load on Bahamut low.
-const FETCH_CONCURRENCY = 3;
+// Every request from this page goes through limitedFetch, so a search over
+// many works stays a light load on Bahamut's servers (and on the viewer's
+// account): at most FETCH_CONCURRENCY at a time and one start per
+// FETCH_GAP_MS. A 429 or 503 reply pauses all requests (Retry-After, or
+// BACKOFF_MS doubled each time up to BACKOFF_MAX_MS) and tries again up to
+// MAX_RETRIES times. STOP_AFTER_REFUSED refused episodes in a row stop the
+// search.
+const FETCH_CONCURRENCY = 2;
+const FETCH_GAP_MS = 500;
+const BACKOFF_MS = 5000;
+const BACKOFF_MAX_MS = 60000;
+const MAX_RETRIES = 3;
+const STOP_AFTER_REFUSED = 3;
 const MOMENT_GAP_TENTHS = 100;   // hits closer than 10 s form one moment
 const LEAD_IN_SEC = 3;           // links start a little before the first hit
 const SAMPLE_TEXTS = 3;
@@ -30,7 +41,10 @@ const $ = (id) => document.getElementById(id);
 const works = new Map();
 const danmuCache = new Map();    // videoSn -> [{ time, text, norm }]
 let results = [];                // [{ work, episode, moments }]
-let run = null;                  // { cancelled } while a search runs
+let run = null;                  // { cancelled, abort } while a search runs
+let nextStartAt = 0;             // performance.now() of the next allowed start
+let pausedUntil = 0;             // all requests wait until then after a 429/503
+let backoffMs = 0;
 let historyPage = 0;             // watch-history pages loaded so far
 let historyPages = Infinity;     // totalPage from the API
 
@@ -51,7 +65,7 @@ async function loadFavorites() {
   let found = 0;
   try {
     for (let page = 1; page <= MAX_GATHER_PAGES; page++) {
-      const res = await fetch(`${ANI}/mygather.php?page=${page}`, { credentials: 'include' });
+      const res = await limitedFetch(`${ANI}/mygather.php?page=${page}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const html = await res.text();
       const doc = new DOMParser().parseFromString(html, 'text/html');
@@ -161,16 +175,16 @@ async function addResolvedWork(work) {
 }
 
 // Fills work.episodes (and the title when missing). Cached on the work.
-async function resolveEpisodes(work) {
+async function resolveEpisodes(work, signal) {
   if (work.episodes) return work.episodes;
   if (!work.videoSn) {
-    const res = await fetch(`${ANI}/animeRef.php?sn=${encodeURIComponent(work.refSn)}`, { credentials: 'include' });
+    const res = await limitedFetch(`${ANI}/animeRef.php?sn=${encodeURIComponent(work.refSn)}`, signal);
     // Only the final URL is needed, not the page.
     if (res.body) res.body.cancel().catch(() => {});
     work.videoSn = new URL(res.url).searchParams.get('sn');
     if (!work.videoSn) throw new Error(t('search.noEpisode'));
   }
-  const json = await fetchJson(`${VIDEO_API}?videoSn=${encodeURIComponent(work.videoSn)}`);
+  const json = await fetchJson(`${VIDEO_API}?videoSn=${encodeURIComponent(work.videoSn)}`, signal);
   const anime = json && json.data && json.data.anime;
   if (!anime) throw new Error(t('search.noEpisode'));
   work.animeSn = String(anime.animeSn);
@@ -238,20 +252,33 @@ async function startSearch() {
   if (!chosen.length) return showMsg('searchMsg', t('search.needWork'));
   showMsg('searchMsg', '');
 
-  run = { cancelled: false };
+  run = { cancelled: false, abort: new AbortController() };
   const current = run;
   setRunning(true);
   results = [];
   renderResults();
+  const signal = current.abort.signal;
   let failed = 0;
+  let refused = 0;               // refused replies in a row
+  const failure = (err) => {
+    if (current.cancelled) return;
+    failed++;
+    if (err.status === 403 || err.status === 429) {
+      if (++refused >= STOP_AFTER_REFUSED) {
+        current.throttled = true;
+        cancelRun(current);
+      }
+    }
+  };
 
   // Episodes of each chosen work.
   let done = 0;
   await pool(chosen, async (work) => {
     try {
-      await resolveEpisodes(work);
+      await resolveEpisodes(work, signal);
+      refused = 0;
     } catch (err) {
-      failed++;
+      failure(err);
     }
     progress(++done, chosen.length, 'search.progressWorks');
   }, current);
@@ -265,14 +292,15 @@ async function startSearch() {
   progress(0, jobs.length, 'search.progressEpisodes');
   await pool(jobs, async ({ work, episode }) => {
     try {
-      const list = await loadDanmu(episode.videoSn);
+      const list = await loadDanmu(episode.videoSn, signal);
+      refused = 0;
       const moments = findMoments(list, keywords).filter(m => m.count >= minCount);
       if (moments.length) {
         results.push({ work, episode, moments });
         scheduleRender();
       }
     } catch (err) {
-      failed++;
+      failure(err);
     }
     progress(++done, jobs.length, 'search.progressEpisodes');
   }, current);
@@ -282,14 +310,15 @@ async function startSearch() {
   setRunning(false);
   renderResults();
   const notes = [];
-  if (current.cancelled) notes.push(t('search.cancelled'));
+  if (current.throttled) notes.push(t('search.throttled'));
+  else if (current.cancelled) notes.push(t('search.cancelled'));
   if (failed) notes.push(t('search.failedCount', { n: failed }));
   showMsg('searchMsg', notes.join(' '));
 }
 
-async function loadDanmu(videoSn) {
+async function loadDanmu(videoSn, signal) {
   if (danmuCache.has(videoSn)) return danmuCache.get(videoSn);
-  const json = await fetchJson(`${DANMU_API}?videoSn=${encodeURIComponent(videoSn)}&geo=TW%2CHK`);
+  const json = await fetchJson(`${DANMU_API}?videoSn=${encodeURIComponent(videoSn)}&geo=TW%2CHK`, signal);
   const list = ((json && json.data && json.data.danmu) || [])
     .map(d => ({ time: d.time, text: d.text, norm: norm(d.text || '') }))
     .sort((a, b) => a.time - b.time);
@@ -422,10 +451,58 @@ async function pool(items, fn, current) {
   await Promise.all(Array.from({ length: Math.min(FETCH_CONCURRENCY, items.length) }, worker));
 }
 
-async function fetchJson(url) {
-  const res = await fetch(url, { credentials: 'include' });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+async function fetchJson(url, signal) {
+  const res = await limitedFetch(url, signal);
+  if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { status: res.status });
   return res.json();
+}
+
+// fetch with the viewer's cookie, inside the limits above. Returns the last
+// reply when the retries run out; the caller checks res.ok.
+async function limitedFetch(url, signal) {
+  for (let attempt = 0; ; attempt++) {
+    await waitTurn(signal);
+    const res = await fetch(url, { credentials: 'include', signal });
+    if (res.status !== 429 && res.status !== 503) {
+      backoffMs = 0;
+      return res;
+    }
+    if (attempt >= MAX_RETRIES) return res;
+    if (res.body) res.body.cancel().catch(() => {});
+    backoffMs = Math.min(BACKOFF_MAX_MS, backoffMs ? backoffMs * 2 : BACKOFF_MS);
+    const after = Number(res.headers.get('Retry-After')) * 1000;
+    const wait = Math.min(BACKOFF_MAX_MS, Math.max(backoffMs, after || 0));
+    pausedUntil = Math.max(pausedUntil, performance.now() + wait);
+  }
+}
+
+// Waits until a request may start (gap, pause after a 429/503).
+async function waitTurn(signal) {
+  for (;;) {
+    signal?.throwIfAborted();
+    const now = performance.now();
+    const at = Math.max(nextStartAt, pausedUntil);
+    if (at <= now) {
+      nextStartAt = now + FETCH_GAP_MS;
+      return;
+    }
+    await sleep(at - now, signal);
+  }
+}
+
+function sleep(ms, signal) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener('abort', () => {
+      clearTimeout(timer);
+      reject(signal.reason);
+    }, { once: true });
+  });
+}
+
+function cancelRun(current) {
+  current.cancelled = true;
+  current.abort.abort();
 }
 
 function progress(done, total, key) {
@@ -473,7 +550,7 @@ $('selectAll').addEventListener('click', () => setVisibleChecked(true));
 $('selectNone').addEventListener('click', () => setVisibleChecked(false));
 $('searchBtn').addEventListener('click', startSearch);
 $('keywords').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !run) startSearch(); });
-$('cancelBtn').addEventListener('click', () => { if (run) run.cancelled = true; });
+$('cancelBtn').addEventListener('click', () => { if (run) cancelRun(run); });
 $('sortMode').addEventListener('change', renderResults);
 
 DmkI18n.load().then(() => {
