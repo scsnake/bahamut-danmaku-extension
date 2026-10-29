@@ -25,6 +25,10 @@ chrome.runtime.onInstalled.addListener(async () => {
         userBlocklist: []
       }
     });
+  } else if (settings.opSkipEnabled === undefined) {
+    // Before opSkipEnabled, one switch (densityEnabled) turned off the
+    // curve and Skip OP together: keep Skip OP off for whoever turned it off.
+    await updateSettings({ set: { opSkipEnabled: settings.densityEnabled !== false } });
   }
 });
 
