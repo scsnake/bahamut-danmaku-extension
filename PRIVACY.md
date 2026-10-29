@@ -10,6 +10,7 @@ This policy covers the Chrome extension "Danmaku Enhancer for AniGamer (Unoffici
 - The extension sends data to the developer only when you report a wrong OP position. You must agree once before the first report.
 - The extension does not sell data, does not show ads, and does not use data for ads.
 - The extension does not send your account, nickname, password, cookies or comments to the developer.
+- The use of information by the extension complies with the [Chrome Web Store User Data Policy](https://developer.chrome.com/docs/webstore/program-policies/user-data-faq), including the Limited Use requirements.
 
 ## Data that leaves your browser
 
@@ -41,7 +42,7 @@ The extension keeps this data in `chrome.storage.local`. It does not send it any
 
 - **Settings**: your choices in the popup and on the settings page, your keyword and user filters, and the interface language.
 - **Scene bookmarks**: the episode, time, title, note and tags that you enter, and a small thumbnail image of that moment.
-- **Age-rating memory**: the highest rating level you agreed to on Bahamut's rating notice. It is kept per Bahamut account, under a short one-way hash of the account cookie, not the account name. The settings page can clear it.
+- **Age-rating memory**: the highest rating level you agreed to yourself, by your own click, on Bahamut's rating notice. Nothing is agreed for you before that, and age limits stay with your Bahamut account. It is kept per Bahamut account, under a short one-way hash of the account ID (read from the `BAHAID` cookie), not the account ID itself. The settings page can clear it.
 - **OP report agreement**: whether you agreed to send OP reports.
 - **Debug log** (newest 5000 entries): by default, only errors (for example a failed load or a failed report), with the episode number and video time. With "Debug mode" (a setting for development, off by default) it also keeps technical events, for example page and episode loads, comment counts, ad start and end, seeks, playback stalls, setting changes and OP guesses. It can hold episode numbers and page addresses on ani.gamer.com.tw. It does not hold your account or cookies.
 - **OP review list** (`opSkipReview`, newest 300 episodes, only with "Debug mode" on): episodes where no OP could be guessed, with the episode number, title, length, and up to 30 public comments about the OP from that episode.

@@ -42,7 +42,7 @@ The toolbar popup (`popup/`) holds the switches used while watching (our layer, 
 The settings page (`options/`; "All settings" in the popup, or right-click the toolbar icon → Options) has every setting, each with its description shown in full:
 - **While watching**: the same switches as the popup.
 - **General**: interface language.
-- **Player**: OP audio match, and clicking 同意 on the per-episode rating notice for you (`agegate.js`, on by default), so episodes start on their own. The first time you click 同意 on a rating yourself, that rating and lower ones are agreed for you from then on, per Bahamut account (kept as a short hash of the account id); a higher rating still waits for your own click. The page shows the remembered rating and can forget it. Age limits still follow your Bahamut account.
+- **Player**: OP audio match, and clicking 同意 on the per-episode rating notice for you (`agegate.js`, on by default), so episodes start on their own. It does not bypass any age restriction and never agrees for you the first time: only after you click 同意 on a rating yourself (only a real click counts) are that rating and lower ones agreed for you from then on, per Bahamut account (kept as a short hash of the account id); a higher rating still waits for your own click. The page shows the remembered rating and can forget it. Age limits still follow your Bahamut account.
 - **Blocking**: your keyword and user ID blocklists (press Enter to add).
 - **OP reports**: whether you agreed to send reports, and a link to take it back.
 - **Debugging**: export or clear the debug log, debug mode and the audio probe.
@@ -52,7 +52,7 @@ Both pages read the stored settings again before every change (`options/settings
 ### 5. Danmaku Search Across Works
 - **Find the scenes viewers reacted to**: search the comments of your subscribed works (or works you add by URL) for keywords such as 高能, and get a list of moments with the number of matching comments.
 - **Jump straight there**: each result opens the episode at that time (`animeVideo.php?sn=…&t=…`).
-- Opened from the popup; when the current tab is an episode, its work is already selected. Requests run 3 at a time, and fetched lists are reused for further searches on the same page.
+- Opened from the popup; when the current tab is an episode, its work is already selected. Requests run 2 at a time, at most one start every 0.5 s, with a pause when Bahamut refuses them, and fetched lists are reused for further searches on the same page.
 
 ### 6. Scene Bookmarks (Best-Scene Collection)
 - **Save a moment or a clip while watching**: hover the player for the toolbar in the top-right corner, or use the keyboard — `B` saves the current moment, `[` marks a clip's start and `]` its end (`Esc` cancels). Shortcuts are ignored while typing in any input.
