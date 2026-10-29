@@ -223,6 +223,7 @@ function busiestWindow(times, window = OP_WINDOW_SEC) {
 
 function initOpSkip({ video, player, getDanmaku, getVideoSn, isEnabled, log }) {
   let opening = null;
+  let found = null;
   let logged = '';
 
   const button = document.createElement('button');
@@ -243,7 +244,7 @@ function initOpSkip({ video, player, getDanmaku, getVideoSn, isEnabled, log }) {
     const list = getDanmaku();
     // Empty while an in-place episode change loads the new list.
     const film = duration >= OP_FILM_MIN_SEC || OP_FILM_TITLE_RE.test(document.title);
-    const found = episode && list.length ? findOpening(list, duration, film) : null;
+    found = episode && list.length ? findOpening(list, duration, film) : null;
     opening = found && found.end !== undefined ? found : null;
     const sn = getVideoSn();
     const key = `${sn} ${JSON.stringify(found)}`;
@@ -277,6 +278,8 @@ function initOpSkip({ video, player, getDanmaku, getVideoSn, isEnabled, log }) {
     update,
     // For the density curve's start and end ticks.
     range: () => (isEnabled() ? opening : null),
+    // The latest guess for this episode, also 'none' or 'unknown' (for reports).
+    result: () => found,
   };
 }
 

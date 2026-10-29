@@ -108,6 +108,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     await saveSettings();
   });
 
+  // One-click wrong-OP report for the current episode tab (opreport.js;
+  // the tab asks for consent the first time). Shown only when reporting is
+  // set up in background.js.
+  chrome.runtime.sendMessage({ type: 'OP_REPORT_READY' }).then((res) => {
+    document.getElementById('opReportRow').hidden = !(res && res.ready);
+  }).catch(() => {});
+  document.getElementById('opReport').addEventListener('click', async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    try {
+      await chrome.tabs.sendMessage(tab.id, { type: 'OP_REPORT_OPEN' });
+      window.close();
+    } catch (_) {
+      // No content script there: not an episode page.
+      document.getElementById('opReportNote').hidden = false;
+    }
+  });
+  const opReportConsent = document.getElementById('opReportConsent');
+  const { opReportConsent: agreed } = await chrome.storage.local.get('opReportConsent');
+  opReportConsent.hidden = agreed !== true;
+  document.getElementById('opReportWithdraw').addEventListener('click', async () => {
+    await chrome.storage.local.remove('opReportConsent');
+    opReportConsent.hidden = true;
+  });
+  document.getElementById('openPrivacy').addEventListener('click', () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL('privacy/privacy.html') });
+    window.close();
+  });
+
   const debugCount = document.getElementById('debugCount');
   const showDebugCount = async () => {
     const { debugLog = [], opSkipReview = {}, audioProbe = {} } =

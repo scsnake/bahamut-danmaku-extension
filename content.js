@@ -271,6 +271,14 @@ async function init() {
     isEnabled: () => settings.densityEnabled !== false,
     getMarks: opSkip.range,
   });
+  initOpReport({
+    video: videoElement,
+    player: playerElement,
+    getVideoSn: () => currentVideoSn,
+    getResult: opSkip.result,
+    isEnabled: () => settings.densityEnabled !== false,
+    log: dlog,
+  });
   audioProbe = initAudioProbe({
     video: videoElement,
     player: playerElement,

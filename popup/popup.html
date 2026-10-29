@@ -46,6 +46,16 @@
         <button type="button" class="info" aria-describedby="tip-densityToggle" data-i18n-aria-label="popup.info">i</button>
       </label>
       <p class="tip" id="tip-densityToggle" role="tooltip" data-i18n="popup.densityDesc"></p>
+      <div id="opReportRow" hidden>
+        <p class="memo">
+          <button type="button" id="opReport" class="link-btn" data-i18n="popup.opReport"></button>
+          <span id="opReportNote" hidden data-i18n="popup.opReportNoPage"></span>
+        </p>
+        <p class="memo" id="opReportConsent" hidden>
+          <span data-i18n="popup.opReportConsent"></span>
+          <button type="button" id="opReportWithdraw" class="link-btn" data-i18n="popup.opReportWithdraw"></button>
+        </p>
+      </div>
     </div>
 
     <div class="setting-group">
@@ -113,6 +123,8 @@
       </label>
       <p class="tip" id="tip-audioProbeToggle" role="tooltip" data-i18n="popup.audioProbeDesc"></p>
     </div>
+
+    <p class="hint"><button type="button" id="openPrivacy" class="link-btn" data-i18n="popup.privacy"></button></p>
   </div>
   <script src="../i18n.js"></script>
   <script src="popup.js"></script>

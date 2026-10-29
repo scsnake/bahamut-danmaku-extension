@@ -137,10 +137,66 @@ async function evaluateCommentWithAi(text) {
   }
 }
 
+// Wrong-OP reports (opreport.js). The Google Apps Script web app URL from
+// tools/op-report-sheet.gs ("https://script.google.com/macros/s/.../exec");
+// empty turns reporting off and hides the report button.
+const OP_REPORT_URL = '';
+const OP_REPORT_TIMEOUT_MS = 15000;
+
+// Builds the request from the listed fields only, so nothing else from the
+// page can be sent.
+async function sendOpReport(r) {
+  if (!OP_REPORT_URL) return { ok: false, error: 'not configured' };
+  const num = (v) => (Number.isFinite(v) ? Math.round(v * 10) / 10 : null);
+  const g = r && r.guess;
+  const seeks = Array.isArray(r && r.seeks) ? r.seeks : [];
+  const body = {
+    v: 2,
+    sn: Number.isInteger(r && r.sn) ? r.sn : null,
+    at: num(r && r.at),
+    duration: num(r && r.duration),
+    guess: g ? { source: String(g.source || ''), start: num(g.start), end: num(g.end) } : null,
+    seeks: seeks.slice(-5).map(s => [num(s && s[0]), num(s && s[1])]),
+    ext: chrome.runtime.getManifest().version,
+  };
+  // text/plain keeps it a simple request (no CORS preflight, which Apps
+  // Script does not answer).
+  const res = await fetch(OP_REPORT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(body),
+    credentials: 'omit',
+    signal: AbortSignal.timeout(OP_REPORT_TIMEOUT_MS),
+  });
+  if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
+  const reply = await res.json().catch(() => null);
+  return reply && reply.ok ? { ok: true } : { ok: false, error: (reply && reply.error) || 'bad reply' };
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'DEBUG_LOG') {
     appendDebugLog(message.entries || []);
     return false;
+  }
+
+  if (message.type === 'OPEN_PRIVACY') {
+    chrome.tabs.create({ url: chrome.runtime.getURL('privacy/privacy.html') });
+    return false;
+  }
+
+  if (message.type === 'OP_REPORT_READY') {
+    sendResponse({ ready: !!OP_REPORT_URL });
+    return false;
+  }
+
+  if (message.type === 'OP_REPORT') {
+    sendOpReport(message.report)
+      .then(res => {
+        dlog('opReportSent', { sn: message.report && message.report.sn, ok: res.ok, error: res.error });
+        sendResponse(res);
+      })
+      .catch(err => sendResponse({ ok: false, error: String(err && err.message || err) }));
+    return true;
   }
 
   if (message.type === 'AI_FILTER_BATCH') {
