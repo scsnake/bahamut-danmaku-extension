@@ -941,8 +941,9 @@ function updateInfoMode() {
 }
 
 // Info mode shows informative comments at full opacity and dims the rest.
+// An official opacity of 0 hides all of them.
 function itemOpacity(d) {
-  if (!infoSns) return display.opacity;
+  if (!infoSns || display.opacity === 0) return display.opacity;
   return d && infoSns.has(d.sn) ? 1 : display.opacity * INFO_DIM;
 }
 
