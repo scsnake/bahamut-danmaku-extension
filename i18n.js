@@ -21,7 +21,7 @@ const DmkI18n = (() => {
 
   const MESSAGES = {
     'zh-TW': {
-      appName: '巴哈彈幕增強',
+      appName: '彈幕增強 for 動畫瘋（非官方）',
       save: '儲存',
       edit: '編輯',
       undo: '復原',
@@ -226,7 +226,7 @@ const DmkI18n = (() => {
     },
 
     en: {
-      appName: 'Bahamut Danmaku Enhancer',
+      appName: 'Danmaku Enhancer for Anime Crazy (Unofficial)',
       save: 'Save',
       edit: 'Edit',
       undo: 'Undo',

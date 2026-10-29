@@ -1,4 +1,6 @@
-# Bahamut Danmaku Enhancer
+# Danmaku Enhancer for Anime Crazy (Unofficial)
+
+彈幕增強 for 動畫瘋（非官方）. An unofficial personal project: it is not made by or connected to Bahamut (巴哈姆特).
 
 A powerful Chrome Extension designed to overhaul the native danmaku (bullet comment) system on Bahamut Anime Crazy (巴哈姆特動畫瘋). It bypasses native limitations and introduces a robust, multi-layered filtering system. An AI filter on Chrome's built-in Gemini Nano is in the code but turned off until it is tested.
 

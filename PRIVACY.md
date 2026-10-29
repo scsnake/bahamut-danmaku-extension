@@ -2,7 +2,7 @@
 
 Effective date: 2026-10-29
 
-This policy covers the Chrome extension "Bahamut Danmaku Enhancer" (巴哈彈幕增強, the extension). It works only on ani.gamer.com.tw (巴哈姆特動畫瘋).
+This policy covers the Chrome extension "Danmaku Enhancer for Anime Crazy (Unofficial)" (彈幕增強 for 動畫瘋（非官方）, the extension). It is a personal project, not made by or connected to Bahamut. It works only on ani.gamer.com.tw (巴哈姆特動畫瘋).
 
 ## Summary
 
