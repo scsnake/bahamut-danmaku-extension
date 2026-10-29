@@ -7,7 +7,7 @@ A powerful Chrome Extension designed to overhaul the native danmaku (bullet comm
 ## Core Features
 
 ### 1. Unlimited Danmaku Overlay Engine
-- **Same Comment List as the Official Player**: Uses the same `danmu.php` request, with your cookies, so your official keyword filters and mute list still apply. The native player has no 3000-comment display cap (it only labels counts above 3000 as "3000+"); an episode with 3001 comments renders all 3001 in both layers. Comments the *server* has already evicted are covered by the archive tool (section 5).
+- **Same Comment List as the Official Player**: Uses the same `danmu.php` request, with your cookies, so your official keyword filters and mute list still apply. The native player has no 3000-comment display cap (it only labels counts above 3000 as "3000+"); an episode with 3001 comments renders all 3001 in both layers.
 - **Custom Hardware-Accelerated Engine**: Injects our own overlay inside the native `.vjs-danmu` area and hides the native comments (`.danmu-warp`), so both always cover the same area.
 - **Matches the Official Player**: Ports the official renderer — font sizes, rolling speed and duration, top/bottom comments, pixel-based placement — and follows the official settings (danmaku on/off, opacity, size, rolling/top/bottom toggles, TW/HK sources) live.
 - **Live Updates**: While you watch, the list is fetched again every 2 minutes, so comments other viewers just sent show up. A comment you send shows within a few seconds (our layer hides the official one, which would show it at once). Can be turned off in the popup.
@@ -46,12 +46,7 @@ A clean, lightweight popup UI (`popup.html`) allowing you to:
 - **Jump straight there**: each result opens the episode at that time (`animeVideo.php?sn=…&t=…`).
 - Opened from the popup; when the current tab is an episode, its work is already selected. Requests run 3 at a time, and fetched lists are reused for further searches on the same page.
 
-### 6. Historical Versioning & Eviction Protection System
-- **Long-term Danmaku Preservation**: Bahamut's servers impose rolling upper limits where newly added comments push out older, classic ones (such as high-effort lyrics, song translations, and key scene annotations).
-- **Automated Snapshotting & Diffs**: The `backup_danmaku.py` engine takes point-in-time snapshots, detects newly evicted comments (`-M`) vs newly added comments (`+N`), and maintains a lossless cumulative master database.
-- **Player Subtitle Generation (ASS)**: Automatically compiles active, evicted, and lyric comments into styled `.ass` subtitle files ready for local media players (IINA, mpv, VLC).
-
-### 7. Scene Bookmarks (Best-Scene Collection)
+### 6. Scene Bookmarks (Best-Scene Collection)
 - **Save a moment or a clip while watching**: hover the player for the toolbar in the top-right corner, or use the keyboard — `B` saves the current moment, `[` marks a clip's start and `]` its end (`Esc` cancels). Shortcuts are ignored while typing in any input.
 - **Captured automatically**: work and episode title, a thumbnail of the current frame (falling back to the anime cover), and up to 30 danmaku from around the scene.
 - **In-player list**: the toolbar's list button shows this episode's bookmarks — click one to jump there. Clips play back and pause at their end, with a *Replay* option.
@@ -70,7 +65,6 @@ A clean, lightweight popup UI (`popup.html`) allowing you to:
 - **`content.css`**: Hides the native comments, styles our comments like the official ones, and provides the light/dark mode UI for the contextual modal.
 - **`search/`**: The danmaku search page (`search.html`/`.js`/`.css`), an extension page that reads the subscription list, episode lists and comment lists with the Bahamut login cookie.
 - **`bookmarks/`**: Scene bookmarks. `common.js` holds helpers shared by every context; `store.js` (imported by `background.js`) is the single writer to `chrome.storage.local`, which serializes updates from the page and the manager; `content-bookmarks.js`/`.css` is the in-player toolbar, panel and quick editor; `manager.html`/`.js`/`.css` is the full-page manager.
-- **`backup_danmaku.py`**: Standalone multi-versioning archival tool that tracks comment lifecycles, lyric annotations, and rolling evictions.
 
 ## Installation for Development
 
@@ -78,15 +72,3 @@ A clean, lightweight popup UI (`popup.html`) allowing you to:
 2. Enable **Developer mode** in the top right corner.
 3. Click **Load unpacked** and select the directory containing this repository.
 4. Navigate to any Bahamut Anime Crazy video (e.g., `https://ani.gamer.com.tw/animeVideo.php?sn=19849`) to see it in action.
-
-## CLI Danmaku Archival & Versioning Tool
-
-To backup and version comments for any anime:
-
-```bash
-# Backup/update by video SN or full URL
-python3 backup_danmaku.py 12331
-# or
-python3 backup_danmaku.py "https://ani.gamer.com.tw/animeVideo.php?sn=12331"
-```
-
