@@ -22,7 +22,7 @@
 // PRIVACY.md; only "agree" sends it and stores the agreement
 // (OP_REPORT_CONSENT), which the popup can take back. Later clicks send at
 // once. background.js posts the report to the developer's Google Apps
-// Script endpoint (tools/op-report-sheet.gs). When background.js has no
+// Script endpoint, which adds it to a sheet. When background.js has no
 // endpoint set, the button stays hidden.
 
 const OP_REPORT_AFTER_SEC = 15;

@@ -138,8 +138,8 @@ async function evaluateCommentWithAi(text) {
   }
 }
 
-// Wrong-OP reports (opreport.js). The Google Apps Script web app URL from
-// tools/op-report-sheet.gs ("https://script.google.com/macros/s/.../exec");
+// Wrong-OP reports (opreport.js). The Google Apps Script web app that adds
+// each report to the developer's sheet ("https://script.google.com/macros/s/.../exec");
 // empty turns reporting off and hides the report button.
 const OP_REPORT_URL = 'https://script.google.com/macros/s/AKfycbxviWoy1RrAqjQuYxS-Ghk0yrQgLLfPG6VDErqhJ7hXa2dUqyLdjH2eEcROz3K0hqN3eA/exec';
 const OP_REPORT_TIMEOUT_MS = 15000;
