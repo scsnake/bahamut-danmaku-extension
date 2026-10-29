@@ -10,6 +10,9 @@ const STATIC_DURATION_MS = 5000;   // top / bottom comments
 const ROLLING_UNIT_SEC = 12;       // speed = (screen width + 2 * text width) / 12 s
 const FONT_SIZES = { 0: 16, 1: 24, 2: 28 };
 const MODES = { 0: 'rolling', 1: 'top', 2: 'bottom' };
+// The AI filter (Gemini Nano) is not tested enough to ship: while false it
+// never runs, whatever the stored setting, and the popup hides its switch.
+const AI_FILTER_READY = false;
 // Comments still waiting for the AI this long after their time are dropped.
 const GRACE_TENTHS = 30;
 // The AI checks comments up to this far ahead of the playhead, a few unique
@@ -125,7 +128,7 @@ function logStats() {
     waiting: dueQueue.length,
     nextIndex,
     total: danmakuData.length,
-    aiReadySec: settings.aiFilterEnabled ? aiReadySec() : undefined,
+    aiReadySec: aiOn() ? aiReadySec() : undefined,
     fps: f.playingMs ? Math.round(f.frames * 10000 / f.playingMs) / 10 : null,
     slowFrames: f.slowFrames,
     maxFrameMs: Math.round(f.maxFrameMs),
@@ -230,7 +233,7 @@ async function init() {
 
   const storage = await chrome.storage.local.get("settings");
   settings = storage.settings || {
-    aiFilterEnabled: true,
+    aiFilterEnabled: false,
     aiStrictness: 'moderate',
     keywordBlocklist: [],
     userBlocklist: []
@@ -311,14 +314,14 @@ async function init() {
     video: [videoElement.clientWidth, videoElement.clientHeight],
     screenWidth: window.screen.availWidth,
     display,
-    settings: { overlayEnabled: overlayOn(), aiFilterEnabled: settings.aiFilterEnabled },
+    settings: { overlayEnabled: overlayOn(), aiFilterEnabled: aiOn() },
   });
 
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local' || !changes.settings) return;
     const prev = settings;
     settings = changes.settings.newValue || {};
-    dlog('settings', { overlayEnabled: overlayOn(), aiFilterEnabled: settings.aiFilterEnabled });
+    dlog('settings', { overlayEnabled: overlayOn(), aiFilterEnabled: aiOn() });
     DmkI18n.setLanguage(settings.uiLanguage);
     updatePlayerToggle();
     processDanmaku();
@@ -683,19 +686,23 @@ function passesBasicFilter(danmaku) {
 function processDanmaku() {
   danmakuData.forEach(d => {
     d.isBlocked = !passesBasicFilter(d) ||
-      (settings.aiFilterEnabled && aiVerdicts.get(d.text) === false);
+      (aiOn() && aiVerdicts.get(d.text) === false);
   });
+}
+
+function aiOn() {
+  return AI_FILTER_READY && settings.aiFilterEnabled === true;
 }
 
 // True when the comment may show as far as the AI is concerned.
 function aiReady(d) {
-  return !settings.aiFilterEnabled || (d.text || '').length < AI_MIN_TEXT || aiVerdicts.has(d.text);
+  return !aiOn() || (d.text || '').length < AI_MIN_TEXT || aiVerdicts.has(d.text);
 }
 
 // Checks comments with the AI ahead of the playhead, soonest first, one
 // request at a time. Runs while paused too, so the buffer grows.
 function aiScan() {
-  if (!settings.aiFilterEnabled || aiInFlight || !videoElement || !danmakuData.length) return;
+  if (!aiOn() || aiInFlight || !videoElement || !danmakuData.length) return;
   const nowTenths = videoElement.currentTime * 10;
   const texts = [];
   for (let i = lowerBound(danmakuData, nowTenths - GRACE_TENTHS); i < danmakuData.length; i++) {

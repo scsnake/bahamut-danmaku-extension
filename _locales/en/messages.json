@@ -3,6 +3,6 @@
     "message": "Bahamut Danmaku Enhancer"
   },
   "appDescription": {
-    "message": "Danmaku layer for Bahamut Anime Crazy that matches the official one, filters spoilers and inappropriate content with local AI, and adds scene bookmarks and a density curve."
+    "message": "Official-style danmaku for Bahamut Anime Crazy, with blocklists, Skip OP, scene bookmarks, danmaku search and a density curve."
   }
 }

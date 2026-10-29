@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Load settings
   const storage = await chrome.storage.local.get("settings");
   let settings = storage.settings || {
-    aiFilterEnabled: true,
+    aiFilterEnabled: false,
     keywordBlocklist: [],
     userBlocklist: []
   };

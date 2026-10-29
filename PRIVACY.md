@@ -52,7 +52,7 @@ The debug log, the OP review list and the audio features leave your browser only
 
 ## AI filter
 
-The AI filter uses the language model built into Chrome (Gemini Nano), which runs on your device. Comment text is checked on your device and is not sent to the developer or to any other server by the extension.
+The current version does not use the AI filter: it is turned off and hidden until it is tested. When it is turned on, it uses the language model built into Chrome (Gemini Nano), which runs on your device. Comment text is checked on your device and is not sent to the developer or to any other server by the extension.
 
 ## Children
 
@@ -79,4 +79,4 @@ Questions about this policy: contact the developer through the extension's Chrom
 - 回報以 HTTPS 送到 Google Apps Script，寫入開發者的 Google 試算表；只由開發者閱讀，只用來改進 OP 偵測，不出售、不用於廣告。
 - 除錯紀錄、OP 待檢查清單與音訊特徵只存在本機，只有你按「匯出」時才會存成檔案。
 - 「以音訊比對 OP」只在本機記錄每秒幾個音量與音色數值（不錄音），用來找出各集重複的 OP，不會送出。
-- AI 過濾使用 Chrome 內建、在你裝置上執行的模型，彈幕不會因此被送出。
+- 目前版本未啟用 AI 過濾（尚未測試）。日後啟用時使用 Chrome 內建、在你裝置上執行的模型，彈幕不會因此被送出。

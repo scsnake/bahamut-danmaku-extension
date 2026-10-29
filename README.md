@@ -1,6 +1,6 @@
 # Bahamut Danmaku Enhancer
 
-A powerful Chrome Extension designed to overhaul the native danmaku (bullet comment) system on Bahamut Anime Crazy (巴哈姆特動畫瘋). It bypasses native limitations and introduces a robust, multi-layered filtering system powered by Chrome's built-in Gemini Nano AI.
+A powerful Chrome Extension designed to overhaul the native danmaku (bullet comment) system on Bahamut Anime Crazy (巴哈姆特動畫瘋). It bypasses native limitations and introduces a robust, multi-layered filtering system. An AI filter on Chrome's built-in Gemini Nano is in the code but turned off until it is tested.
 
 ## Core Features
 
@@ -20,7 +20,7 @@ To maintain perfect video performance while evaluating thousands of comments, th
   - Instantly blocks comments containing blocked keywords.
   - **Webpage Integration**: Automatically reads your keyword filters from Bahamut's "進階設定" panel (server-rendered in the page) and follows them as you add or delete keywords.
   
-- **Pass 2: AI Semantic Filtering (Gemini Nano)**
+- **Pass 2: AI Semantic Filtering (Gemini Nano)** — *not tested yet: off, whatever the stored setting, and its popup switch is hidden until `AI_FILTER_READY` in `content.js` is set to true.*
   - Checks comments ahead of the playhead (up to 5 minutes, soonest first, also while paused), so results are ready before comments are due. Each unique text is checked once and the result is kept for the page, so repeated texts ("www") cost nothing. Uses Chrome's built-in local Prompt API (`LanguageModel`).
   - A comment that is still unchecked 3 s after its time is dropped. If the AI is unavailable, comments show unfiltered.
   - The AI evaluates the semantics of the comment to catch *spoilers (劇透)*, *inappropriate sexual intent*, and *toxic behavior*, including comments that try to evade standard filters using similar phonetics or symbols.
@@ -35,7 +35,6 @@ To maintain perfect video performance while evaluating thousands of comments, th
 
 ### 4. Extension Popup Manager
 A clean, lightweight popup UI (`popup.html`) allowing you to:
-- Toggle the AI semantic filter on or off.
 - Click 同意 on the per-episode rating notice for you (`agegate.js`, on by default), so episodes start on their own. The first time you click 同意 on a rating yourself, that rating and lower ones are agreed for you from then on, per Bahamut account (kept as a short hash of the account id); a higher rating still waits for your own click. The popup shows the remembered rating and can forget it. Age limits still follow your Bahamut account.
 - Manage your custom Keyword Blocklist.
 - Manage your User ID Blocklist.

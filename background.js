@@ -14,7 +14,7 @@ chrome.runtime.onInstalled.addListener(async () => {
         autoAgreeAgeGate: true,
         opAudio: true,
         audioProbe: false,
-        aiFilterEnabled: true,
+        aiFilterEnabled: false,
         aiStrictness: 'moderate', // 'low', 'moderate', 'high'
         keywordBlocklist: [],
         userBlocklist: []
