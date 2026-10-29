@@ -2,15 +2,13 @@
 //
 // Shared by the popup and the settings page (options.html). Both can be open
 // at the same time, and the player's own buttons change settings too, so a
-// page never writes back its own old copy: update() reads the stored
-// settings again, changes only what it was asked to, and writes them back.
-// Writes from one page run one after another. Changes from anywhere reach
-// every page through storage.onChanged, and bindToggle() keeps its checkbox
-// in step with them.
+// page never writes its own copy: update() sends only the change to
+// background.js (SETTINGS_UPDATE), the one writer, which applies changes
+// one after another. Changes from anywhere reach every page through
+// storage.onChanged, and bindToggle() keeps its checkbox in step with them.
 
 const DmkSettings = (() => {
   let current = {};
-  let queue = Promise.resolve();
   const listeners = [];
 
   async function load() {
@@ -19,16 +17,14 @@ const DmkSettings = (() => {
     return current;
   }
 
-  // change(settings) edits a fresh copy of the stored settings in place.
-  function update(change) {
-    queue = queue.then(async () => {
-      const { settings } = await chrome.storage.local.get('settings');
-      const next = { ...(settings || {}) };
-      change(next);
-      current = next;
-      await chrome.storage.local.set({ settings: next });
-    }).catch(err => console.error('[Danmaku Enhancer] settings', err));
-    return queue;
+  // change: { set: { key: value }, add: { listKey: item }, remove: { listKey: item } }.
+  async function update(change) {
+    try {
+      const res = await chrome.runtime.sendMessage({ type: 'SETTINGS_UPDATE', change });
+      if (!res || !res.ok) throw new Error((res && res.error) || 'no reply');
+    } catch (err) {
+      console.error('[Danmaku Enhancer] settings', err);
+    }
   }
 
   function onChange(fn) {
@@ -37,7 +33,6 @@ const DmkSettings = (() => {
 
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local' || !changes.settings) return;
-    // Not `current`: update() has already set it to this page's own change.
     const prev = changes.settings.oldValue || {};
     current = changes.settings.newValue || {};
     listeners.forEach(fn => fn(current, prev));
@@ -49,7 +44,7 @@ const DmkSettings = (() => {
     const el = document.getElementById(id);
     const read = s => (onByDefault ? s[key] !== false : s[key] === true);
     el.checked = read(current);
-    el.addEventListener('change', () => update(s => { s[key] = el.checked; }));
+    el.addEventListener('change', () => update({ set: { [key]: el.checked } }));
     onChange(s => { el.checked = read(s); });
     return el;
   }

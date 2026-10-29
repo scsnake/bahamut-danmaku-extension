@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const uiLanguage = document.getElementById('uiLanguage');
   uiLanguage.addEventListener('change', () => {
-    DmkSettings.update(s => { s.uiLanguage = uiLanguage.value; });
+    DmkSettings.update({ set: { uiLanguage: uiLanguage.value } });
   });
 
   // --- Age gate ---------------------------------------------------------------
@@ -64,10 +64,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const val = input.value.trim();
       if (!val) return;
       input.value = '';
-      DmkSettings.update(s => {
-        const list = s[key] || [];
-        if (!list.includes(val)) s[key] = [...list, val];
-      }).then(renderLists);
+      DmkSettings.update({ add: { [key]: val } });
     });
   }
 
@@ -96,7 +93,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       delBtn.textContent = '×';
       delBtn.title = DmkI18n.t('remove');
       delBtn.onclick = () => {
-        DmkSettings.update(s => { s[key] = (s[key] || []).filter(v => v !== item); }).then(renderLists);
+        DmkSettings.update({ remove: { [key]: item } });
       };
 
       li.appendChild(delBtn);

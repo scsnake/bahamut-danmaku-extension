@@ -192,6 +192,17 @@ function overlayOn() {
   return settings.overlayEnabled !== false;
 }
 
+// Sends one settings change to background.js, the one writer (see
+// updateSettings there); storage.onChanged then applies it in every tab.
+async function updateSettings(change) {
+  try {
+    const res = await chrome.runtime.sendMessage({ type: 'SETTINGS_UPDATE', change });
+    if (!res || !res.ok) throw new Error((res && res.error) || 'no reply');
+  } catch (err) {
+    dlog('error', { where: 'updateSettings', message: err.message });
+  }
+}
+
 // Pixel-based vertical placement per mode, like the official allocator:
 // take the first free position, else the one with the least overlap.
 class LaneAllocator {
@@ -418,7 +429,7 @@ function addPlayerToggle() {
   playerToggle.addEventListener('click', async (e) => {
     e.stopPropagation();
     // storage.onChanged applies the change, in this tab and in others.
-    await chrome.storage.local.set({ settings: { ...settings, overlayEnabled: !overlayOn() } });
+    await updateSettings({ set: { overlayEnabled: !overlayOn() } });
   });
   officialButton.after(playerToggle);
   updatePlayerToggle();
@@ -1167,22 +1178,24 @@ function showDanmakuModal(d, wasPlaying) {
     copyBtn.textContent = DmkI18n.t('modal.copied');
   };
 
-  blockUserBtn.onclick = async () => {
+  blockUserBtn.onclick = () => {
+    // The local copy changes at once, so the comments go now; the stored
+    // settings change through background.js.
     settings.userBlocklist = settings.userBlocklist || [];
     if (!settings.userBlocklist.includes(d.userid)) {
       settings.userBlocklist.push(d.userid);
-      await chrome.storage.local.set({ settings });
+      updateSettings({ add: { userBlocklist: d.userid } });
     }
     close();
     processDanmaku();
     removeOnScreen(el => bySn.get(Number(el.dataset.sn))?.userid === d.userid);
   };
 
-  filterTextBtn.onclick = async () => {
+  filterTextBtn.onclick = () => {
     settings.keywordBlocklist = settings.keywordBlocklist || [];
     if (!settings.keywordBlocklist.includes(d.text)) {
       settings.keywordBlocklist.push(d.text);
-      await chrome.storage.local.set({ settings });
+      updateSettings({ add: { keywordBlocklist: d.text } });
     }
     close();
     processDanmaku();

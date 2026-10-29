@@ -25,6 +25,32 @@ chrome.runtime.onInstalled.addListener(async () => {
   }
 });
 
+// The one writer of `settings` (SETTINGS_UPDATE messages). The popup, the
+// settings page and every player tab change settings, each in its own
+// context; a read-change-write in each of them could put back an old copy
+// over a change made at the same moment elsewhere. Here the changes run one
+// after another on the stored settings. A change is
+// { set: { key: value }, add: { listKey: item }, remove: { listKey: item } }.
+let settingsWrite = Promise.resolve();
+
+function updateSettings(change) {
+  const run = settingsWrite.then(async () => {
+    const { settings } = await chrome.storage.local.get('settings');
+    const next = { ...(settings || {}), ...(change.set || {}) };
+    for (const [key, item] of Object.entries(change.add || {})) {
+      const list = Array.isArray(next[key]) ? next[key] : [];
+      if (!list.includes(item)) next[key] = [...list, item];
+    }
+    for (const [key, item] of Object.entries(change.remove || {})) {
+      if (Array.isArray(next[key])) next[key] = next[key].filter(v => v !== item);
+    }
+    await chrome.storage.local.set({ settings: next });
+    return next;
+  });
+  settingsWrite = run.catch(() => {});
+  return run;
+}
+
 // Debug log shared by all tabs (DEBUG_LOG messages) and this worker. Kept in
 // chrome.storage.local, newest DEBUG_LOG_MAX entries; exported from the popup.
 const DEBUG_LOG_MAX = 5000;
@@ -194,6 +220,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'DEBUG_LOG') {
     appendDebugLog(message.entries || []);
     return false;
+  }
+
+  if (message.type === 'SETTINGS_UPDATE') {
+    updateSettings(message.change || {})
+      .then(settings => sendResponse({ ok: true, settings }))
+      .catch(err => {
+        dlog('error', { where: 'updateSettings', message: String(err && err.message || err) });
+        sendResponse({ ok: false, error: String(err && err.message || err) });
+      });
+    return true;
   }
 
   if (message.type === 'OPEN_PRIVACY') {
