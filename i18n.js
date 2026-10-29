@@ -138,6 +138,7 @@ const DmkI18n = (() => {
       'report.thanks': '已回報 OP 不對，謝謝！',
       'report.failed': '回報失敗：{error}',
       'report.already': '這一集已經回報過了。',
+      'report.lyrics': '這一集的 OP 是依觀眾貼的歌詞判斷，不需回報。',
 
       'modal.title': '彈幕資訊',
       'modal.author': '發送者 ID：{id}',
@@ -348,6 +349,7 @@ const DmkI18n = (() => {
       'report.thanks': 'Wrong OP reported. Thank you!',
       'report.failed': 'Could not report: {error}',
       'report.already': 'You already reported this episode.',
+      'report.lyrics': 'This OP comes from lyrics that viewers posted; no report is needed.',
 
       'modal.title': 'Danmaku Info',
       'modal.author': 'Author ID: {id}',

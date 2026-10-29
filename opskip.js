@@ -14,7 +14,9 @@
 //   each other count together, and the group with the most votes wins.
 //   Its earliest comment is the start.
 //   Targets that are not OP_MIN_SEC–OP_MAX_SEC after their comment
-//   ("空降座標24:00" as a joke, "空降 0:30" near the end) are not votes.
+//   ("空降座標24:00" as a joke, "空降 0:30" near the end) are not votes,
+//   and neither are jumps past something else ("前方尷尬空降10:30",
+//   OP_JUMP_SKIP_RE).
 // - "空降成功" / "謝謝指揮官", posted just after the jump lands: without a
 //   usable target, the busiest OP_WINDOW_SEC of these comments is the end,
 //   and the start is OP_DEFAULT_SEC before it (or the beginning of the
@@ -32,6 +34,17 @@
 // - Last, comments that name the OP at all ("神OP", "居然有OP", "op君",
 //   "不跳OP") come all through it, and most at its start or its end. The
 //   OP_DEFAULT_SEC span with the most of them (at least OP_TALK_MIN) is the OP.
+// - Lyrics: one viewer posts the song's lines as non-rolling (top or bottom)
+//   danmaku, in Japanese (kana) and/or romaji, often a line and its romaji
+//   at the same moment (findLyrics). The earliest such run in the first
+//   OP_LATEST_FRACTION is the OP song. It places the OP only roughly (the
+//   OP starts before the singing and ends after it), but it says which
+//   clues are right: when it exists, a jump or "空降成功" counts only if it
+//   ends near the last line (LYRIC_END_*), so a joke "空降成功" far after
+//   the OP or a jump past some other scene does not move the OP. Alone, the
+//   OP ends LYRIC_TAIL_SEC after the last line and starts OP_DEFAULT_SEC
+//   before that, or LYRIC_LEAD_SEC before the first line if that is earlier.
+//   "空降失敗" is a joke posted anywhere and is not a clue.
 // - "op君陣亡" / "OP已死" / "OP君已離線" / "op君……是誰" / "所以我說op呢" /
 //   "為op君上香" / "沒OP" / "無OP": this episode has no OP ("op君" is posted
 //   both when the OP is back and when it is missing). When these outnumber the clues above (and there are at least
@@ -78,6 +91,8 @@ const OP_FORWARD_ZONE_W = 240;
 const OP_FORWARD_ZONE_H = 150;
 // Matched after NFKC, so full-width digits, letters and "：" match too.
 const OP_JUMP_RE = /空降\s*(?:時間|时间|座標|坐標|坐标|座标|點|点)?\s*(?:至|到)?\s*:?\s*(\d{1,2})\s*[:.]\s*([0-5]\d)(?!\d)/;
+// A jump past something other than the OP.
+const OP_JUMP_SKIP_RE = /尷尬|尴尬|高能|恐怖|噁心|恶心|血腥|虐|劇透|剧透|片尾|(?<![a-z])ed(?![a-z])/i;
 const OP_LANDED_RE = /空降成功|[謝谢]{2}指[揮挥]官/;
 // "op" then up to 8 characters, then a word for gone, dead or missing; or
 // "沒OP" / "無OP" / "誰是OP" in front.
@@ -90,6 +105,24 @@ const OP_OPENING_RE = /[開开][頭头]\s*op/i;
 const OP_STAY_RE = /不跳過?\s*op|op.{0,12}不跳|^.{0,6}不跳[\s!~.。]*$/i;
 // "op" as a word, not inside "open" or "stop".
 const OP_TALK_RE = /(?<![a-z])op(?![a-z])/i;
+// Lyric runs (findLyrics). Lines this close in time are one moment (a line
+// and its romaji); a run needs LYRIC_MIN_STAMPS moments over at least
+// LYRIC_MIN_SPAN_SEC, no gap over LYRIC_GAP_MAX_SEC, and a median gap of
+// LYRIC_GAP_MEDIAN_MIN_SEC–LYRIC_GAP_MEDIAN_MAX_SEC (one sung line).
+const LYRIC_STAMP_SEC = 1;
+const LYRIC_MIN_STAMPS = 6;
+const LYRIC_MIN_SPAN_SEC = 30;
+const LYRIC_GAP_MAX_SEC = 20;
+const LYRIC_GAP_MEDIAN_MIN_SEC = 1.5;
+const LYRIC_GAP_MEDIAN_MAX_SEC = 10;
+// The OP goes on after the last sung line and starts before the first.
+const LYRIC_TAIL_SEC = 10;
+const LYRIC_LEAD_SEC = 5;
+// A jump or landing that ends this long before / after the last line agrees.
+const LYRIC_END_BEFORE_SEC = 5;
+const LYRIC_END_AFTER_SEC = 45;
+// The ED part: a run that starts this close to the end of the video.
+const LYRIC_ED_SEC = 5 * 60;
 const OP_REVIEW_STORE = 'opSkipReview';
 const OP_REVIEW_MAX = 300;
 const OP_REVIEW_SAMPLES = 30;
@@ -114,7 +147,8 @@ function findOpening(list, duration, film = false) {
     if (m) {
       const target = Number(m[1]) * 60 + Number(m[2]);
       const length = target - sec;
-      if (sec <= latest && length >= OP_MIN_SEC && length <= OP_MAX_SEC && target < duration) {
+      if (sec <= latest && length >= OP_MIN_SEC && length <= OP_MAX_SEC && target < duration &&
+          !OP_JUMP_SKIP_RE.test(text)) {
         jumps.push({ sec, target });
       }
       continue;
@@ -133,9 +167,11 @@ function findOpening(list, duration, film = false) {
     else if (OP_STAY_RE.test(text)) stays.push(sec);
     if (OP_TALK_RE.test(text) || OP_STAY_RE.test(text)) talk.push(sec);
   }
+  const lyrics = film ? null : findLyrics(list, latest, duration);
   const clues = {
     jump: jumps.length, landed: landed.length, none: none.length,
     greet: greets.length, stay: stays.length, talk: talk.length, opening: openings.length,
+    lyrics: lyrics ? lyrics.lines : 0,
   };
   const found = guess();
   return Object.assign(found || { source: 'unknown' }, { clues }, film ? { film } : {});
@@ -155,11 +191,17 @@ function findOpening(list, duration, film = false) {
       return fit ? fit.at : Infinity;
     };
 
-    if (jumps.length) {
+    // With lyrics, only an end near the last sung line agrees.
+    const agrees = (end) => !lyrics ||
+      (end >= lyrics.last - LYRIC_END_BEFORE_SEC && end <= lyrics.last + LYRIC_END_AFTER_SEC);
+    const fromLyrics = () => (lyrics ? lyrics.first - LYRIC_LEAD_SEC : Infinity);
+
+    const votes = jumps.filter(j => agrees(j.target - OP_JUMP_EARLY_SEC));
+    if (votes.length) {
       let best = [];
       let bestTarget = Infinity;
-      for (const { target } of jumps) {
-        const group = jumps.filter(j => Math.abs(j.target - target) <= OP_GROUP_SEC);
+      for (const { target } of votes) {
+        const group = votes.filter(j => Math.abs(j.target - target) <= OP_GROUP_SEC);
         if (group.length > best.length || (group.length === best.length && target < bestTarget)) {
           best = group;
           bestTarget = target;
@@ -168,7 +210,7 @@ function findOpening(list, duration, film = false) {
       const targets = best.map(j => j.target).sort((a, b) => a - b);
       const target = targets[Math.floor((targets.length - 1) / 2)];
       return {
-        start: snapStart(Math.min(...best.map(j => j.sec), startBefore(target))),
+        start: snapStart(Math.min(...best.map(j => j.sec), startBefore(target), fromLyrics())),
         end: target - OP_JUMP_EARLY_SEC,
         source: 'jump',
         votes: best.length,
@@ -177,14 +219,24 @@ function findOpening(list, duration, film = false) {
 
     if (film) return null;
 
-    const land = busiestWindow(landed);
+    const land = busiestWindow(landed.filter(agrees));
     if (land && land.at >= OP_MIN_SEC) {
       const clue = startBefore(land.at);
       return {
-        start: snapStart(clue < Infinity ? clue : land.at - OP_DEFAULT_SEC),
+        start: snapStart(Math.max(0, Math.min(clue < Infinity ? clue : land.at - OP_DEFAULT_SEC, fromLyrics()))),
         end: land.at,
         source: clue < Infinity ? 'landed+start' : 'landed',
         votes: land.count,
+      };
+    }
+
+    if (lyrics) {
+      const end = lyrics.last + LYRIC_TAIL_SEC;
+      return {
+        start: snapStart(Math.max(0, Math.min(end - OP_DEFAULT_SEC, lyrics.first - LYRIC_LEAD_SEC))),
+        end,
+        source: 'lyrics',
+        votes: lyrics.lines,
       };
     }
 
@@ -210,6 +262,79 @@ function findOpening(list, duration, film = false) {
     }
     return null;
   }
+}
+
+// The OP song's lyric run: { first, last, lines } (seconds, comments), or
+// null. Non-rolling Japanese or romaji lines by one user (see the header);
+// runs by other users that overlap the earliest one join it. A lyric poster
+// has one run for the OP and maybe one in the last LYRIC_ED_SEC (the ED);
+// a user with more runs before that posts the Japanese dialogue, not a song.
+function findLyrics(list, latest, duration) {
+  const byUser = new Map();
+  for (const d of list) {
+    if (!d.position || !d.userid) continue;
+    const text = String(d.text || '').normalize('NFKC').replace(/\s+/g, ' ').trim();
+    if (!lyricScript(text)) continue;
+    if (!byUser.has(d.userid)) byUser.set(d.userid, []);
+    byUser.get(d.userid).push({ sec: d.time / 10, text });
+  }
+  const runs = [];
+  for (const lines of byUser.values()) {
+    lines.sort((a, b) => a.sec - b.sec);
+    const mine = [];
+    let run = [];
+    for (const line of lines) {
+      if (run.length && line.sec - run[run.length - 1].sec > LYRIC_GAP_MAX_SEC) {
+        const found = lyricRun(run);
+        if (found) mine.push(found);
+        run = [];
+      }
+      run.push(line);
+    }
+    const found = lyricRun(run);
+    if (found) mine.push(found);
+    if (mine.filter(r => r.first < duration - LYRIC_ED_SEC).length <= 1) runs.push(...mine);
+  }
+  runs.sort((a, b) => a.first - b.first);
+  const op = runs.find(r => r.first <= latest);
+  if (!op) return null;
+  for (const r of runs) {
+    if (r === op || r.first > op.last || r.last < op.first) continue;
+    op.first = Math.min(op.first, r.first);
+    op.last = Math.max(op.last, r.last);
+    op.lines += r.lines;
+  }
+  return op;
+}
+
+// { first, last, lines } when one user's lines look like a sung song.
+function lyricRun(lines) {
+  // The same text again and again is a flood, not lyrics.
+  if (new Set(lines.map(l => l.text)).size < lines.length * 0.8) return null;
+  const stamps = [];
+  for (const { sec } of lines) {
+    if (!stamps.length || sec - stamps[stamps.length - 1] > LYRIC_STAMP_SEC) stamps.push(sec);
+  }
+  if (stamps.length < LYRIC_MIN_STAMPS) return null;
+  const span = stamps[stamps.length - 1] - stamps[0];
+  if (span < LYRIC_MIN_SPAN_SEC || span > OP_MAX_SEC) return null;
+  const gaps = stamps.slice(1).map((t, i) => t - stamps[i]).sort((a, b) => a - b);
+  const median = gaps[Math.floor(gaps.length / 2)];
+  if (median < LYRIC_GAP_MEDIAN_MIN_SEC || median > LYRIC_GAP_MEDIAN_MAX_SEC) return null;
+  return { first: stamps[0], last: stamps[stamps.length - 1], lines: lines.length };
+}
+
+// 'jp' (kana), 'ro' (romaji: mostly Latin letters, several different ones,
+// a normal share of vowels, so not "wwww", "RRRR" or "wryyyy"), or null.
+function lyricScript(text) {
+  if (text.length < 4 || text.length > 60) return null;
+  const kana = (text.match(/[\u3041-\u3096\u30a1-\u30fa]/g) || []).length;
+  if (kana >= 2 && kana / text.length >= 0.2) return 'jp';
+  const letters = text.toLowerCase().match(/[a-z]/g) || [];
+  if (letters.length < 6 || letters.length / text.replace(/ /g, '').length < 0.6) return null;
+  if (new Set(letters).size < 4) return null;
+  const vowels = letters.filter(c => 'aeiou'.includes(c)).length / letters.length;
+  return vowels >= 0.25 && vowels <= 0.65 ? 'ro' : null;
 }
 
 function snapStart(sec) {

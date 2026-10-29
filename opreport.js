@@ -3,7 +3,8 @@
 // One-click report of a wrong OP guess (see opskip.js). A small "OP 不對"
 // button shows above "skip OP" while the guessed OP plays and for
 // OP_REPORT_AFTER_SEC after its end (where a wrong skip lands); the popup
-// can send the same report for episodes where nothing was guessed.
+// can send the same report for episodes where nothing was guessed. An OP
+// placed from posted lyrics (source 'lyrics') is not reported.
 //
 // A pointer that rests on the left OP_REPORT_HINT_BAR of the progress bar,
 // or in the lower-left corner of the player, early in the episode, is
@@ -100,10 +101,11 @@ function initOpReport({ video, player, getVideoSn, getResult, isEnabled, log }) 
     const op = getResult();
     const t = video.currentTime;
     const done = reported.has(sn);
+    const lyrics = isLyrics(op);
     button.textContent = DmkI18n.t(done ? 'report.buttonDone' : 'report.button');
     button.title = DmkI18n.t('report.buttonTitle');
     button.disabled = done || busy;
-    button.hidden = !(ready && isEnabled() && op && op.end !== undefined &&
+    button.hidden = !(ready && isEnabled() && op && op.end !== undefined && !lyrics &&
       t >= op.start && t < op.end + OP_REPORT_AFTER_SEC &&
       !player.classList.contains('vjs-ad-playing') && !document.getElementById('dmk-op-report'));
     hint.textContent = button.textContent;
@@ -112,9 +114,13 @@ function initOpReport({ video, player, getVideoSn, getResult, isEnabled, log }) 
     if (button.parentNode !== player) player.append(button, hint, toast);
   }
 
+  function isLyrics(op) {
+    return !!op && op.source === 'lyrics';
+  }
+
   function hintAllowed() {
     const duration = video.duration;
-    return ready && isEnabled() && !!sn && !reported.has(sn) && !busy &&
+    return ready && isEnabled() && !!sn && !reported.has(sn) && !busy && !isLyrics(getResult()) &&
       Number.isFinite(duration) && duration >= OP_MIN_VIDEO_SEC &&
       video.currentTime <= duration * OP_LATEST_FRACTION &&
       !player.classList.contains('vjs-ad-playing') && !document.getElementById('dmk-op-report');
@@ -209,6 +215,10 @@ function initOpReport({ video, player, getVideoSn, getResult, isEnabled, log }) 
     if (!ready || !sn || busy) return;
     if (reported.has(sn)) {
       showToast(DmkI18n.t('report.already'));
+      return;
+    }
+    if (isLyrics(getResult())) {
+      showToast(DmkI18n.t('report.lyrics'));
       return;
     }
     // Taken at the click, before the consent dialog pauses the video.
