@@ -129,6 +129,20 @@ const LYRIC_ED_SEC = 5 * 60;
 const OP_REVIEW_STORE = 'opSkipReview';
 const OP_REVIEW_MAX = 300;
 const OP_REVIEW_SAMPLES = 30;
+// Sample clue comments. The server leaves out comments that match the
+// viewer's official keywords (danmu.php is filtered per account), so a
+// keyword found in one of these (空降, ":", op, 成功, …) hides clues;
+// content.js then fetches the list without the filters for findOpening().
+const OP_CLUE_SAMPLES = ['空降 1:30', '座標 1:30', '空降成功', '謝謝指揮官', 'op君', '開頭op', '不跳op', 'op君陣亡', 'op已死'];
+
+function opCluesHiddenBy(keywords) {
+  const norm = s => String(s).normalize('NFKC').toLowerCase();
+  return keywords.some(k => {
+    const kw = norm(k).trim();
+    return kw && OP_CLUE_SAMPLES.some(sample => norm(sample).includes(kw));
+  });
+}
+
 const OP_SAMPLE_RE = /op|空降|跳|指[揮挥]|片頭|片头|主題曲|主题曲/i;
 
 // Returns { start, end, source, votes } in seconds, { source: 'none', votes }

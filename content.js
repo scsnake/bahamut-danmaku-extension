@@ -63,6 +63,10 @@ let bySn = new Map();
 let byText = new Map();    // text -> comments with that text
 // Info mode: sn of the informative comments (infomode.js), or null when off.
 let infoSns = null;
+// The list without the viewer's official keyword filters, for the OP guess
+// only, when those keywords hide OP clues (opCluesHiddenBy in opskip.js).
+let opList = null;
+let opListSn = null;
 // AI results per text (true = allowed). Kept across reloads, seeks and
 // episodes, so a repeated text ("www") is checked once.
 const aiVerdicts = new Map();
@@ -308,7 +312,7 @@ async function init() {
   opSkip = initOpSkip({
     video: videoElement,
     player: playerElement,
-    getDanmaku: () => danmakuData,
+    getDanmaku: () => (opList && opListSn === currentVideoSn ? opList : danmakuData),
     getVideoSn: () => currentVideoSn,
     getAudio: opAudio.result,
     isEnabled: () => settings.densityEnabled !== false,
@@ -469,6 +473,7 @@ async function loadDanmaku(reason) {
   }
   processDanmaku();
   updateInfoMode();
+  loadOpList();
   const added = previous.size ? list.filter(d => !previous.has(d.sn)) : [];
   dlog('loaded', {
     reason,
@@ -526,19 +531,41 @@ function liveRefresh() {
   loadDanmaku('live');
 }
 
-async function fetchDanmaku(videoSn, geos) {
+async function fetchDanmaku(videoSn, geos, credentials = 'include') {
   // Same request as the official player. An empty geo list means the user
   // turned off every danmaku source. The server applies the user's official
-  // keyword filters and mute list, so the request carries the cookies.
+  // keyword filters and mute list, so the request carries the cookies
+  // (loadOpList leaves them out on purpose).
   if (!geos.length) return [];
   const url = `${DANMU_API}?videoSn=${encodeURIComponent(videoSn)}&geo=${encodeURIComponent(geos.join(','))}`;
   ownFetchStarts.push(performance.now());
   if (ownFetchStarts.length > 10) ownFetchStarts.shift();
-  const res = await fetch(url, { credentials: 'include' });
+  const res = await fetch(url, { credentials });
   const json = await res.json();
   const list = (json && json.data && json.data.danmu) || [];
   list.sort((a, b) => a.time - b.time || a.sn - b.sn);
   return list;
+}
+
+// When the viewer's official keywords hide OP clues (a filtered "空降" or
+// ":"), fetches this episode's list once without cookies, so without those
+// filters, for the OP guess only; what is shown does not change.
+async function loadOpList() {
+  const sn = currentVideoSn;
+  if (!danmakuData.length || opListSn === sn || !opCluesHiddenBy(officialKeywords)) return;
+  opListSn = sn;
+  opList = null;
+  try {
+    const list = await fetchDanmaku(sn, display.geos, 'omit');
+    if (sn !== currentVideoSn) return;
+    opList = list;
+    dlog('opList', { count: list.length, hidden: list.length - danmakuData.length });
+    opSkip.update();
+    densityCurve.update();
+  } catch (err) {
+    opListSn = null;
+    dlog('error', { where: 'loadOpList', message: err.message });
+  }
 }
 
 // Diagnostic: after a seek, logs when playback does not move although the
@@ -702,8 +729,10 @@ async function watchOfficialKeywords() {
     dlog('officialKeywords', { count: officialKeywords.length });
   };
   read();
+  loadOpList();
   new MutationObserver(() => {
     read();
+    loadOpList();
     processDanmaku();
     removeOnScreen(el => {
       const d = bySn.get(Number(el.dataset.sn));
