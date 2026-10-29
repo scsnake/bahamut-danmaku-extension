@@ -1,4 +1,4 @@
-# Danmaku Enhancer for Anime Crazy (Unofficial)
+# Danmaku Enhancer for AniGamer (Unofficial)
 
 彈幕增強 for 動畫瘋（非官方）. An unofficial personal project: it is not made by or connected to Bahamut (巴哈姆特).
 

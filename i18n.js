@@ -246,7 +246,7 @@ const DmkI18n = (() => {
     },
 
     en: {
-      appName: 'Danmaku Enhancer for Anime Crazy (Unofficial)',
+      appName: 'Danmaku Enhancer for AniGamer (Unofficial)',
       save: 'Save',
       edit: 'Edit',
       undo: 'Undo',
