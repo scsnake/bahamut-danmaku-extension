@@ -61,6 +61,8 @@ let overlayElement = null;
 let danmakuData = [];      // sorted by time; `time` is in tenths of a second
 let bySn = new Map();
 let byText = new Map();    // text -> comments with that text
+// Info mode: sn of the informative comments (infomode.js), or null when off.
+let infoSns = null;
 // AI results per text (true = allowed). Kept across reloads, seeks and
 // episodes, so a repeated text ("www") is checked once.
 const aiVerdicts = new Map();
@@ -353,6 +355,7 @@ async function init() {
     ageGate.check();
     audioProbe.check();
     if ((prev.overlayEnabled !== false) !== overlayOn()) applyOverlayMode();
+    if ((prev.infoMode === true) !== (settings.infoMode === true)) updateInfoMode();
   });
 
   bookmarks = initBookmarks({
@@ -453,6 +456,7 @@ async function loadDanmaku(reason) {
     else byText.set(d.text, [d]);
   }
   processDanmaku();
+  updateInfoMode();
   const added = previous.size ? list.filter(d => !previous.has(d.sn)) : [];
   dlog('loaded', {
     reason,
@@ -660,9 +664,7 @@ function pollOfficialDisplay() {
     return;
   }
   if (display.opacity !== prev.opacity) {
-    overlayElement.querySelectorAll('.custom-danmaku-item').forEach(el => {
-      el.style.opacity = display.opacity;
-    });
+    applyOpacity();
   }
   // Remove on-screen comments of a mode that was just turned off.
   for (const mode of Object.keys(display.modeAllow)) {
@@ -911,6 +913,44 @@ function onResize() {
   });
 }
 
+// --- Info mode -----------------------------------------------------------------
+
+// Finds the informative comments again (after a load, or when the mode is
+// turned on or off) and sets the opacity of those on screen.
+function updateInfoMode() {
+  infoSns = null;
+  if (settings.infoMode === true && danmakuData.length) {
+    // During an ad the video has the ad's length, so take at least the
+    // last comment plus 30 s.
+    const lastSec = danmakuData[danmakuData.length - 1].time / 10;
+    const duration = Math.max(lastSec + 30, videoElement.duration || 0);
+    const started = performance.now();
+    const found = findInfoComments(danmakuData, duration);
+    infoSns = found.sns;
+    const types = {};
+    found.blocks.forEach(b => { types[b.type] = (types[b.type] || 0) + 1; });
+    dlog('infoMode', {
+      comments: infoSns.size,
+      blocks: types,
+      ms: Math.round(performance.now() - started),
+    });
+  }
+  applyOpacity();
+}
+
+// Info mode shows informative comments at full opacity and dims the rest.
+function itemOpacity(d) {
+  if (!infoSns) return display.opacity;
+  return d && infoSns.has(d.sn) ? 1 : display.opacity * INFO_DIM;
+}
+
+function applyOpacity() {
+  if (!overlayElement) return;
+  overlayElement.querySelectorAll('.custom-danmaku-item').forEach(el => {
+    el.style.opacity = itemOpacity(bySn.get(Number(el.dataset.sn)));
+  });
+}
+
 // --- Rendering ---------------------------------------------------------------
 
 // Shows one comment that starts at video time `startMs`. `elapsedMs` > 0
@@ -929,7 +969,7 @@ function renderDanmaku(d, startMs, elapsedMs = 0) {
     ? '#' + d.color.toString(16).padStart(6, '0')
     : (d.color || '#ffffff');
   el.style.fontSize = `${Math.floor((FONT_SIZES[d.size] || 24) * display.sizeRate)}px`;
-  el.style.opacity = display.opacity;
+  el.style.opacity = itemOpacity(d);
   el.style.visibility = 'hidden';
   overlayElement.appendChild(el);
 

@@ -11,6 +11,7 @@ chrome.runtime.onInstalled.addListener(async () => {
         overlayEnabled: true,
         densityEnabled: true,
         liveUpdate: true,
+        infoMode: false,
         autoAgreeAgeGate: true,
         opAudio: true,
         audioProbe: false,

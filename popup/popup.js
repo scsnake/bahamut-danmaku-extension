@@ -66,6 +66,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     await saveSettings();
   });
 
+  const infoModeToggle = document.getElementById('infoModeToggle');
+  infoModeToggle.checked = settings.infoMode === true;
+  infoModeToggle.addEventListener('change', async (e) => {
+    settings.infoMode = e.target.checked;
+    await saveSettings();
+  });
+
   const debugModeToggle = document.getElementById('debugModeToggle');
   debugModeToggle.checked = settings.debugMode === true;
   debugModeToggle.addEventListener('change', async (e) => {
