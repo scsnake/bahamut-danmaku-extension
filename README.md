@@ -42,7 +42,7 @@ The toolbar popup (`popup/`) holds the switches used while watching (our layer, 
 The settings page (`options/`; "All settings" in the popup, or right-click the toolbar icon → Options) has every setting, each with its description shown in full:
 - **While watching**: the same switches as the popup.
 - **General**: interface language.
-- **Player**: OP audio match, and clicking 同意 on the per-episode rating notice for you (`agegate.js`, on by default), so episodes start on their own. It does not bypass any age restriction and never agrees for you the first time: only after you click 同意 on a rating yourself (only a real click counts) are that rating and lower ones agreed for you from then on, per Bahamut account (kept as a short hash of the account id); a higher rating still waits for your own click. The page shows the remembered rating and can forget it. Age limits still follow your Bahamut account.
+- **Player**: OP audio match, and clicking 同意 on the per-episode rating notice for you (`agegate.js`, on by default), so episodes start on their own. It does not bypass any age restriction and never agrees for you the first time: only after you click 同意 on a rating yourself (only a real click counts) are that rating and lower ones agreed for you from then on, per Bahamut account (kept as a short hash of the account id); a higher rating still waits for your own click, and a 限制級 notice always does: auto-agree stops at 輔15. The page shows the remembered rating and can forget it. Age limits still follow your Bahamut account.
 - **Blocking**: your keyword and user ID blocklists (press Enter to add).
 - **OP reports**: whether you agreed to send reports, and a link to take it back.
 - **Debugging**: export or clear the debug log, debug mode and the audio probe.

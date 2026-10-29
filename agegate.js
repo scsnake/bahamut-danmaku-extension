@@ -2,7 +2,9 @@
 //
 // Optional (settings.autoAgreeAgeGate, on by default): clicks 同意 on the
 // rating notice the player shows before each episode, up to the highest
-// rating the viewer has agreed to themselves on this Bahamut account.
+// rating the viewer has agreed to themselves on this Bahamut account, and
+// never above 輔15 (AGE_AUTO_MAX): a 限制級 notice always waits for the
+// viewer's own click.
 //
 // - The notice is a `div.R18` layer added to #ani_video, holding
 //   `.video-cover-ncc` with an image, a text and button#adult (checked on
@@ -10,11 +12,12 @@
 //   text; levels 5 and 6 (限制級, and 限制級 with age verification) are one
 //   18+ tier.
 // - When the viewer clicks 同意 on a notice themselves, that rating and all
-//   lower ones are agreed to from then on for this account. A higher rating
-//   still waits for the viewer's own click. Age limits still come from the
-//   account; the notice is a per-episode reminder, and the player itself
-//   clicks the same button (agreeAgeGate()) when a link with a time code is
-//   opened.
+//   lower ones (up to 輔15) are agreed to from then on for this account. A
+//   higher rating, and every 限制級 notice, still waits for the viewer's own
+//   click. Nothing is agreed before the viewer's first own click. Age
+//   limits still come from the account; the notice is a per-episode
+//   reminder, and the player itself clicks the same button (agreeAgeGate())
+//   when a link with a time code is opened.
 // - The account is the BAHAID cookie, stored only as a short SHA-256 hash
 //   (chrome.storage.local `ageGateConsent`: { [hash]: { level, at } }).
 //   Without a login nothing is agreed or learned.
@@ -23,6 +26,8 @@ const AGE_GATE_RETRY_MS = 300;
 const AGE_GATE_MAX_TRIES = 5;
 const AGE_GATE_STORE = 'ageGateConsent';
 const AGE_LEVEL_MAX = 5;
+// The highest rating ever agreed for the viewer: 輔15. 限制級 (5) is never.
+const AGE_AUTO_MAX = 4;
 
 // Highest first; image file names and texts from anime_player.js.
 const AGE_LEVEL_RULES = [
@@ -57,10 +62,12 @@ async function currentAccountKey() {
 
 async function agreedLevel(account) {
   const { [AGE_GATE_STORE]: all = {} } = await chrome.storage.local.get(AGE_GATE_STORE);
-  return (all[account] && all[account].level) || 0;
+  return Math.min((all[account] && all[account].level) || 0, AGE_AUTO_MAX);
 }
 
-async function rememberLevel(account, level) {
+// A 限制級 click teaches 輔15 and lower, never 限制級 itself.
+async function rememberLevel(account, clicked) {
+  const level = Math.min(clicked, AGE_AUTO_MAX);
   const { [AGE_GATE_STORE]: all = {} } = await chrome.storage.local.get(AGE_GATE_STORE);
   const before = (all[account] && all[account].level) || 0;
   if (level <= before) return false;
@@ -99,7 +106,7 @@ function watchAgeGate({ player, isEnabled, log }) {
     try {
       const account = await currentAccountKey();
       const agreed = account ? await agreedLevel(account) : 0;
-      if (level > agreed) {
+      if (level > AGE_AUTO_MAX || level > agreed) {
         if (!asked.has(agree)) log('ageGateAsk', { level, agreed, loggedIn: !!account });
         asked.add(agree);
         return;
