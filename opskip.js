@@ -90,7 +90,10 @@ const OP_FORWARD_SEC = 83;
 const OP_FORWARD_ZONE_W = 240;
 const OP_FORWARD_ZONE_H = 150;
 // Matched after NFKC, so full-width digits, letters and "：" match too.
-const OP_JUMP_RE = /空降\s*(?:時間|时间|座標|坐標|坐标|座标|點|点)?\s*(?:至|到)?\s*:?\s*(\d{1,2})\s*[:.]\s*([0-5]\d)(?!\d)/;
+// Up to 6 other characters may stand between the word and the time
+// ("空降指示:1:30", "請空降至02:20"), and "座標 1:30" alone counts.
+// Jokes that also match ("空降部隊23:00集合") fail the length checks below.
+const OP_JUMP_RE = /(?:空降|座標|坐標|坐标|座标)[^\d\n]{0,6}?(\d{1,2})\s*[:.]\s*([0-5]\d)(?!\d)/;
 // A jump past something other than the OP.
 const OP_JUMP_SKIP_RE = /尷尬|尴尬|高能|恐怖|噁心|恶心|血腥|虐|劇透|剧透|片尾|(?<![a-z])ed(?![a-z])/i;
 const OP_LANDED_RE = /空降成功|[謝谢]{2}指[揮挥]官/;
