@@ -221,7 +221,9 @@ function busiestWindow(times, window = OP_WINDOW_SEC) {
   return best;
 }
 
-function initOpSkip({ video, player, getDanmaku, getVideoSn, isEnabled, log }) {
+// getAudio: the OP found from the sound (opaudio.js), preferred over the
+// danmaku guess.
+function initOpSkip({ video, player, getDanmaku, getVideoSn, getAudio, isEnabled, log }) {
   let opening = null;
   let found = null;
   let logged = '';
@@ -244,7 +246,11 @@ function initOpSkip({ video, player, getDanmaku, getVideoSn, isEnabled, log }) {
     const list = getDanmaku();
     // Empty while an in-place episode change loads the new list.
     const film = duration >= OP_FILM_MIN_SEC || OP_FILM_TITLE_RE.test(document.title);
-    found = episode && list.length ? findOpening(list, duration, film) : null;
+    const guess = episode && list.length ? findOpening(list, duration, film) : null;
+    const audio = episode ? getAudio() : null;
+    found = audio
+      ? { start: audio.start, end: audio.end, source: audio.source, ...(guess ? { clues: guess.clues } : {}) }
+      : guess;
     opening = found && found.end !== undefined ? found : null;
     const sn = getVideoSn();
     const key = `${sn} ${JSON.stringify(found)}`;

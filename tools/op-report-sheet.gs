@@ -27,7 +27,8 @@ const SHEET_NAME = 'reports';
 const HEADER = ['received', 'sn', 'url', 'at', 'duration',
   'guess_source', 'guess_start', 'guess_end', 'seeks', 'ext'];
 const MAX_SEEKS = 5;
-const SOURCES = ['jump', 'landed', 'landed+start', 'opening', 'greet', 'talk', 'none', 'unknown'];
+const SOURCES = ['jump', 'landed', 'landed+start', 'opening', 'greet', 'talk', 'none', 'unknown',
+  'audio-match', 'audio-profile'];
 const MAX_VIDEO_SEC = 4 * 60 * 60;
 const MAX_PER_MINUTE = 30;
 const SAME_REPORT_SEC = 600;

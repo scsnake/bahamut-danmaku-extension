@@ -1,8 +1,8 @@
 // audioprobe.js
 //
-// Test tool (settings.audioProbe, off by default): records a few audio
-// numbers per second of playback, to learn whether the sound can tell a
-// song (the OP) from talk. Nothing is decided from them yet.
+// Records a few audio numbers per second of playback. opaudio.js finds the
+// OP from them (onSecond); the test setting settings.audioProbe (off by
+// default) also keeps them for export (keep).
 //
 // - video.captureStream() copies the element's output; playback, volume and
 //   the site's own audio are not changed. The player uses MSE (a blob: URL)
@@ -18,6 +18,15 @@
 // - Rows are kept per episode in chrome.storage.local (AUDIO_STORE, newest
 //   AUDIO_MAX_EPISODES) and exported from the popup with the debug log.
 //   The debug log gets the start, the track changes and a silence check.
+// - A second with only zero samples on a track that has not sounded since
+//   it was captured is the stale track, not silence: it is dropped. Zero
+//   samples after the track has sounded are real (digital) silence.
+// - Each second belongs to the episode of its media source, not to the
+//   page's current episode: the site switches episodes in place, and the
+//   episode number and the source change at slightly different times.
+//   A new source takes the episode number once it differs from the one
+//   the previous source had (or after AUDIO_SN_WAIT_MS, for the same
+//   episode loaded again).
 
 const AUDIO_FRAME_MS = 50;
 const AUDIO_FFT_SIZE = 2048;
@@ -30,6 +39,7 @@ const AUDIO_RECAPTURE_GAP_MS = 2000;
 const AUDIO_STORE = 'audioProbe';
 const AUDIO_MAX_EPISODES = 30;
 const AUDIO_MIN_VIDEO_SEC = 60;      // shorter videos are pre-roll ads
+const AUDIO_SN_WAIT_MS = 10000;
 // One row per second of video time:
 // t       video time at the end of the second (s)
 // db      mean loudness (dBFS)
@@ -44,7 +54,7 @@ const AUDIO_MIN_VIDEO_SEC = 60;      // shorter videos are pre-roll ads
 // n       frames in this second (fewer when the tab is in the background)
 const AUDIO_COLUMNS = ['t', 'db', 'gap', 'flat', 'cent', 'low', 'mid', 'high', 'flux', 'beat', 'n'];
 
-function initAudioProbe({ video, player, getVideoSn, isEnabled, log }) {
+function initAudioProbe({ video, player, getVideoSn, isEnabled, keep, onSecond, log }) {
   let ctx = null;
   let analyser = null;
   let stream = null;
@@ -61,6 +71,8 @@ function initAudioProbe({ video, player, getVideoSn, isEnabled, log }) {
   let silentFrames = 0;   // zero frames on this track so far (-1: reported)
   let zeroRun = 0;        // zero frames in a row
   let lastCapture = 0;
+  let soundedSinceCapture = false;
+  let media = { src: null, sn: null, since: 0, prevSn: null };  // see rowSn()
   let recaptures = 0;
   let heard = false;
 
@@ -101,6 +113,7 @@ function initAudioProbe({ video, player, getVideoSn, isEnabled, log }) {
 
   function capture() {
     lastCapture = performance.now();
+    soundedSinceCapture = false;
     zeroRun = 0;
     release();
     stream = video.captureStream();
@@ -189,6 +202,9 @@ function initAudioProbe({ video, player, getVideoSn, isEnabled, log }) {
     // Zero samples while playing: the track is stale (captured muting does
     // not zero it), so capture again.
     zeroRun = rms > 1e-5 ? 0 : zeroRun + 1;
+    // The analyser still holds the old track's last samples just after a
+    // capture.
+    if (rms > 1e-5 && performance.now() - lastCapture > AUDIO_FRAME_MS * 3) soundedSinceCapture = true;
     if (zeroRun > AUDIO_RECAPTURE_SEC * 1000 / AUDIO_FRAME_MS &&
         performance.now() - lastCapture > AUDIO_RECAPTURE_GAP_MS) {
       recaptures++;
@@ -210,10 +226,17 @@ function initAudioProbe({ video, player, getVideoSn, isEnabled, log }) {
 
     const sec = Math.floor(video.currentTime);
     if (second && second.sec !== sec) finishSecond();
-    if (!second || second.sec !== sec) second = { sec, n: 0, db: 0, flat: 0, cent: 0, low: 0, mid: 0, high: 0, flux: 0 };
+    if (!second || second.sec !== sec) {
+      second = { sec, n: 0, zero: 0, stale: false, db: 0, flat: 0, cent: 0, low: 0, mid: 0, high: 0, flux: 0 };
+    }
     second.n++;
+    if (rms <= 1e-5) {
+      second.zero++;
+      if (!soundedSinceCapture) second.stale = true;
+    }
     second.db += 20 * Math.log10(rms + 1e-10);
-    second.flat += linSum ? Math.exp(logSum / flatBins) / (linSum / flatBins) : 0;
+    // The same 1e-20 floor on both means keeps it within 0–1 near silence.
+    second.flat += linSum ? Math.exp(logSum / flatBins) / (linSum / flatBins + 1e-20) : 0;
     second.cent += total ? weighted / total : 0;
     second.low += total ? low / total : 0;
     second.mid += total ? mid / total : 0;
@@ -226,13 +249,33 @@ function initAudioProbe({ video, player, getVideoSn, isEnabled, log }) {
     const n = s.n;
     const mean = loud.reduce((a, b) => a + b, 0) / (loud.length || 1);
     const gap = loud.filter(v => v < mean * 0.3).length / (loud.length || 1);
-    const sn = getVideoSn();
+    // It holds zeros from a track that had not sounded since it was captured.
+    if (s.stale) return;
+    const sn = rowSn();
+    if (!sn) return;
     meta[sn] = { title: document.title.replace(/\s*線上看.*$/, ''), duration: Math.round(video.duration) };
-    (rows[sn] = rows[sn] || []).push([
+    const row = [
       s.sec + 1, audioRound(s.db / n, 1), audioRound(gap, 2), audioRound(s.flat / n, 3), Math.round(s.cent / n),
       audioRound(s.low / n, 2), audioRound(s.mid / n, 2), audioRound(s.high / n, 2), audioRound(s.flux / n, 3),
       audioRound(beatScore(), 2), n,
-    ]);
+    ];
+    if (keep()) (rows[sn] = rows[sn] || []).push(row);
+    onSecond(sn, row);
+  }
+
+  // The episode of the playing source (see the top of the file), or null
+  // while a new source waits for its episode number.
+  function rowSn() {
+    const src = video.currentSrc;
+    if (src !== media.src) {
+      media = { src, sn: null, since: performance.now(), prevSn: media.sn ?? media.prevSn };
+    }
+    if (media.sn === null) {
+      const sn = getVideoSn();
+      if (sn === media.prevSn && performance.now() - media.since < AUDIO_SN_WAIT_MS) return null;
+      media.sn = sn;
+    }
+    return media.sn;
   }
 
   // Normalized autocorrelation of the flux at beat-like lags.
@@ -277,7 +320,15 @@ function initAudioProbe({ video, player, getVideoSn, isEnabled, log }) {
     }
   }
 
-  // A new source (ad -> episode, next episode): capture it afresh.
+  // A new source (ad -> episode, next episode): its first second must not
+  // be filed under the old frames or the new episode number.
+  video.addEventListener('emptied', () => {
+    second = null;
+    prevMag = null;
+    flux.length = 0;
+    loud.length = 0;
+  });
+  // Then capture it afresh.
   video.addEventListener('loadedmetadata', () => {
     if (timer) capture();
   });

@@ -101,6 +101,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('ageGateMemory').hidden = !ageGateToggle.checked;
   }
 
+  const opAudioToggle = document.getElementById('opAudioToggle');
+  opAudioToggle.checked = settings.opAudio !== false;
+  opAudioToggle.addEventListener('change', async (e) => {
+    settings.opAudio = e.target.checked;
+    await saveSettings();
+  });
+
   const densityToggle = document.getElementById('densityToggle');
   densityToggle.checked = settings.densityEnabled !== false;
   densityToggle.addEventListener('change', async (e) => {

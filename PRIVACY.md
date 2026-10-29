@@ -45,7 +45,8 @@ The extension keeps this data in `chrome.storage.local`. It does not send it any
 - **OP report agreement**: whether you agreed to send OP reports.
 - **Debug log** (newest 5000 entries): technical events, for example page and episode loads, comment counts, ad start and end, seeks, playback stalls, setting changes, OP guesses and errors. It can hold episode numbers and page addresses on ani.gamer.com.tw, and the text of comments that the AI filter hid. It does not hold your account or cookies.
 - **OP review list** (`opSkipReview`, newest 300 episodes): episodes where no OP could be guessed, with the episode number, title, length, and up to 30 public comments about the OP from that episode.
-- **Audio features** (`audioProbe`, a test setting, off by default): per-second numbers about the sound of an episode, such as loudness and pitch balance. It records no audio and no speech.
+- **OP sound profiles** (`opAudio:index` and one `opAudio:w:<work>` key per work, on with "Find the OP from the sound"): for the first part of the episodes you play, a few numbers per second about the sound (loudness, brightness and the balance of low, middle and high tones), kept per work for the newest 8 episodes of the newest 40 works, and the OP times found from them. It records no audio and no speech, and is used only to find the OP on this computer.
+- **Audio features** (`audioProbe`, a test setting, off by default): the same kind of per-second numbers for whole episodes, kept for export. It records no audio and no speech.
 
 The debug log, the OP review list and the audio features leave your browser only if you click "Export" in the popup. Then they are saved as a file on your computer, and you decide what to do with it. "Clear" in the popup deletes them.
 
@@ -77,4 +78,5 @@ Questions about this policy: contact the developer through the extension's Chrom
 - 回報只包含：本集編號（sn）、擴充功能的 OP 推測、你按下時的播放時間與影片長度、你在這一集最近幾次跳轉的時間點、擴充功能版本。不含帳號、暱稱、Cookie、彈幕、IP 位址或其他網址。
 - 回報以 HTTPS 送到 Google Apps Script，寫入開發者的 Google 試算表；只由開發者閱讀，只用來改進 OP 偵測，不出售、不用於廣告。
 - 除錯紀錄、OP 待檢查清單與音訊特徵只存在本機，只有你按「匯出」時才會存成檔案。
+- 「以音訊比對 OP」只在本機記錄每秒幾個音量與音色數值（不錄音），用來找出各集重複的 OP，不會送出。
 - AI 過濾使用 Chrome 內建、在你裝置上執行的模型，彈幕不會因此被送出。

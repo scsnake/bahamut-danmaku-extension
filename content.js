@@ -51,6 +51,7 @@ let densityCurve = null;
 let ageGate = null;
 let opSkip = null;
 let audioProbe = null;
+let opAudio = null;
 let videoElement = null;
 let playerElement = null;
 let overlayElement = null;
@@ -256,11 +257,23 @@ async function init() {
   onResize();
   addPlayerToggle();
   applyOverlayMode();
+  const opAudioOn = () => settings.densityEnabled !== false && settings.opAudio !== false;
+  opAudio = initOpAudio({
+    video: videoElement,
+    getVideoSn: () => currentVideoSn,
+    isEnabled: opAudioOn,
+    onChange: () => {
+      if (opSkip) opSkip.update();
+      if (densityCurve) densityCurve.update();
+    },
+    log: dlog,
+  });
   opSkip = initOpSkip({
     video: videoElement,
     player: playerElement,
     getDanmaku: () => danmakuData,
     getVideoSn: () => currentVideoSn,
+    getAudio: opAudio.result,
     isEnabled: () => settings.densityEnabled !== false,
     log: dlog,
   });
@@ -283,7 +296,9 @@ async function init() {
     video: videoElement,
     player: playerElement,
     getVideoSn: () => currentVideoSn,
-    isEnabled: () => settings.audioProbe === true,
+    isEnabled: () => settings.audioProbe === true || opAudioOn(),
+    keep: () => settings.audioProbe === true,
+    onSecond: opAudio.onSecond,
     log: dlog,
   });
   ageGate = watchAgeGate({
