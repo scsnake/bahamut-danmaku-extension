@@ -23,7 +23,7 @@ To maintain perfect video performance while evaluating thousands of comments, th
   - Instantly blocks comments containing blocked keywords.
   - **Webpage Integration**: Automatically reads your keyword filters from Bahamut's "進階設定" panel (server-rendered in the page) and follows them as you add or delete keywords.
   
-- **Pass 2: AI Semantic Filtering (Gemini Nano)** — *not tested yet: off, whatever the stored setting, and its switch on the settings page is hidden until `AI_FILTER_READY` in `content.js` is set to true.*
+- **Pass 2: AI Semantic Filtering (Gemini Nano)** — *not tested yet: in a store install it is off, whatever the stored setting, and its switch on the settings page is hidden (`AI_FILTER_READY` in `content.js`). Loaded unpacked, the switch shows (see Installation for Development).*
   - Checks comments ahead of the playhead (up to 5 minutes, soonest first, also while paused), so results are ready before comments are due. Each unique text is checked once and the result is kept for the page, so repeated texts ("www") cost nothing. Uses Chrome's built-in local Prompt API (`LanguageModel`).
   - A comment that is still unchecked 3 s after its time is dropped. If the AI is unavailable, comments show unfiltered.
   - The AI evaluates the semantics of the comment to catch *spoilers (劇透)*, *inappropriate sexual intent*, and *toxic behavior*, including comments that try to evade standard filters using similar phonetics or symbols.
@@ -45,7 +45,7 @@ The settings page (`options/`; "All settings" in the popup, or right-click the t
 - **Player**: OP audio match, and clicking 同意 on the per-episode rating notice for you (`agegate.js`, on by default), so episodes start on their own. Bahamut shows a rating reminder before every episode (the rating is set per episode), and some 限制級 works also need age verification on your account (`animeAgeValidate.php`). This setting never touches that verification and never agrees for you the first time: only after you manually click 同意 on a rating yourself (`Event.isTrusted`) are that rating and all lower ones (for example, manually agreeing to 限制級 18+ also covers 輔15 and below) agreed for you from then on, per Bahamut account (kept as a short hash of the `BAHAID` account ID); any higher rating still waits for your own click. The page shows the remembered rating and can clear it.
 - **Blocking**: your keyword and user ID blocklists (press Enter to add).
 - **OP reports**: whether you agreed to send reports, and a link to take it back.
-- **Debugging**: export or clear the debug log (errors only). Debug mode is a development setting, hidden in this version.
+- **Debugging**: export or clear the debug log (errors only). Debug mode is a development setting, hidden in a store install.
 
 Both pages read the stored settings again before every change (`options/settings-ui.js`), so a change made in one place (the popup, the page in another tab, the player's own button) is never undone by another.
 
@@ -70,7 +70,7 @@ Both pages read the stored settings again before every change (`options/settings
 - **`density.js`**: Draws the density curve as an SVG inside the player's `.vjs-progress-holder`.
 - **`opskip.js`**: Finds the OP from the danmaku, for the ◣ ◢ marks above the progress bar and the Skip OP button.
 - **`infomode.js`**: Finds the informative comments for info danmaku mode; `content.js` sets their opacity.
-- **`audioprobe.js`**: Records per-second audio numbers through `video.captureStream()` for the OP audio match (`opaudio.js`). Keeping every second for export with the debug log is a development tool: hidden and off in this version (`AUDIO_PROBE_READY` in `content.js`). The debug log keeps only errors unless "Debug mode" (a development setting, hidden and off in this version) is on.
+- **`audioprobe.js`**: Records per-second audio numbers through `video.captureStream()` for the OP audio match (`opaudio.js`). Keeping every second for export with the debug log is a development tool: hidden and off in a store install (`AUDIO_PROBE_READY` in `content.js`). The debug log keeps only errors unless "Debug mode" (a development setting, hidden and off in a store install) is on.
 - **`content.css`**: Hides the native comments, styles our comments like the official ones, and provides the light/dark mode UI for the contextual modal.
 - **`search/`**: The danmaku search page (`search.html`/`.js`/`.css`), an extension page that reads the subscription list, episode lists and comment lists with the Bahamut login cookie.
 - **`bookmarks/`**: Scene bookmarks. `common.js` holds helpers shared by every context; `store.js` (imported by `background.js`) is the single writer to `chrome.storage.local`, which serializes updates from the page and the manager; `content-bookmarks.js`/`.css` is the in-player toolbar, panel and quick editor; `manager.html`/`.js`/`.css` is the full-page manager.
@@ -81,3 +81,5 @@ Both pages read the stored settings again before every change (`options/settings
 2. Enable **Developer mode** in the top right corner.
 3. Click **Load unpacked** and select the directory containing this repository.
 4. Navigate to any Bahamut Anime Crazy video (e.g., `https://ani.gamer.com.tw/animeVideo.php?sn=19849`) to see it in action.
+
+An unpacked copy is a development build: its manifest has no `update_url`, which the Chrome Web Store adds to every store install (`DEV_BUILD` in `content.js`). It shows a DEV badge on the toolbar icon, and the settings page shows the development switches: debug mode, the audio probe and the AI filter. If the store version is also installed, turn one of them off in `chrome://extensions`; otherwise both draw their layer on the player.

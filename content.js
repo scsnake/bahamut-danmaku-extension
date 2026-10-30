@@ -10,16 +10,20 @@ const STATIC_DURATION_MS = 5000;   // top / bottom comments
 const ROLLING_UNIT_SEC = 12;       // speed = (screen width + 2 * text width) / 12 s
 const FONT_SIZES = { 0: 16, 1: 24, 2: 28 };
 const MODES = { 0: 'rolling', 1: 'top', 2: 'bottom' };
+// Development build: loaded unpacked. The Chrome Web Store adds update_url
+// to the manifest of every store install, so store users never get the
+// development features below (options.js and background.js check the same).
+const DEV_BUILD = !('update_url' in chrome.runtime.getManifest());
 // TODO(ai-filter): not ready. The AI filter (Gemini Nano) is not tested
-// enough to ship: while false it never runs, whatever the stored setting,
-// and the settings page hides its switch. Not tested in the extension's
-// service worker (see the private VERIFICATION_TODO).
-const AI_FILTER_READY = false;
-// TODO(audio-probe): development tool. While false, settings.audioProbe
+// enough to ship: outside DEV_BUILD it never runs, whatever the stored
+// setting, and the settings page hides its switch. Not tested in the
+// extension's service worker (see the private VERIFICATION_TODO).
+const AI_FILTER_READY = DEV_BUILD;
+// TODO(audio-probe): development tool. Outside DEV_BUILD, settings.audioProbe
 // (keep every second's audio numbers for export) is ignored and the
 // settings page hides its switch. The capture itself still runs for the OP
 // audio match (settings.opAudio).
-const AUDIO_PROBE_READY = false;
+const AUDIO_PROBE_READY = DEV_BUILD;
 // Comments still waiting for the AI this long after their time are dropped.
 const GRACE_TENTHS = 30;
 // The AI checks comments up to this far ahead of the playhead, a few unique

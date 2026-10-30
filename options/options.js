@@ -21,6 +21,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   DmkSettings.bindToggle('debugModeToggle', 'debugMode', false);
   DmkSettings.bindToggle('audioProbeToggle', 'audioProbe', false);
 
+  // Loaded unpacked (no update_url from the Web Store): show the development
+  // switches. See DEV_BUILD in content.js.
+  const devBuild = !('update_url' in chrome.runtime.getManifest());
+  for (const el of document.querySelectorAll('.dev-only')) el.hidden = !devBuild;
+
   const uiLanguage = document.getElementById('uiLanguage');
   uiLanguage.addEventListener('change', () => {
     DmkSettings.update({ set: { uiLanguage: uiLanguage.value } });
@@ -165,7 +170,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     uiLanguage.value = DmkI18n.language;
     document.title = `${DmkI18n.t('options.title')} – ${DmkI18n.t('appName')}`;
     document.getElementById('version').textContent =
-      DmkI18n.t('options.version', { version: chrome.runtime.getManifest().version });
+      DmkI18n.t('options.version', { version: chrome.runtime.getManifest().version }) +
+      (devBuild ? ' (dev)' : '');
     renderLists();
     showAgeGateMemory();
   });

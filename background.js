@@ -71,6 +71,13 @@ function appendDebugLog(entries) {
   }).catch(err => console.warn("[Danmaku Enhancer] Debug log write failed:", err));
 }
 
+// Loaded unpacked (see DEV_BUILD in content.js): a DEV badge on the toolbar
+// icon tells this copy apart from a store install in the same browser.
+if (!('update_url' in chrome.runtime.getManifest())) {
+  chrome.action.setBadgeText({ text: 'DEV' });
+  chrome.action.setBadgeBackgroundColor({ color: '#b45309' });
+}
+
 // Full logging is for development (settings.debugMode); otherwise only
 // errors are kept, here and in the content script.
 let debugMode = false;
